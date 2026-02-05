@@ -17,7 +17,7 @@ De broncode voor de tracking algoritmes en aansturing is te vinden in de [Softwa
 
 ### Documentatie
 
-De algemene documentatie voor het project is te vinden in de [Documentatie](../Documentatie/) map. Hierin vind je technische specificaties, flowcharts en uitleg over de werking van het tracking algoritme.
+De algemene documentatie voor het project is te vinden in de [Documentatie](../Documentatie) map. Hierin vind je technische specificaties, flowcharts en uitleg over de werking van het tracking algoritme.
 
 
 ## Team
