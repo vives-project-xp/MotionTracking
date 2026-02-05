@@ -33,3 +33,14 @@ Alle onderzoeken voor het project kan men terug vinden in de [Research](Research
 | [<img src="https://github.com/JollyJones101.png" alt="" width="25" style="margin-bottom:-6px;"> Jamie Jones](https://github.com/JollyJones101) | [Invullen] |
 
 ## Planning
+
+### Sprint 1 (Week 1-4):
+- [ ] Alle componenten besteld
+- [ ] Camera doen werken op Raspberry Pi + Scherm uittekenen
+- [ ] ...
+
+### Sprint 2 (Week 5-8)
+- [ ] ...
+
+### Sprint 3 (Week 9-15)
+- [ ] ...
