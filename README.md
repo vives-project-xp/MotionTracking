@@ -6,4 +6,4 @@
 - [<img src="https://github.com/Brent69420809.png" alt="" width="25" style="margin-bottom:-6px;"> Brent Vileyn](https://github.com/Brent69420809)
 - [<img src="https://github.com/EwoudBoutje.png" alt="" width="25" style="margin-bottom:-6px;"> EwoudBoutje](https://github.com/EwoudBoutje)
 - [<img src="https://github.com/JasonDeSmet2025.png" alt="" width="25" style="margin-bottom:-6px;"> Jason De Smet](https://github.com/JasonDeSmet2025)
-- [<img src="https://github.com/JollyJones.png" alt="" width="25" style="margin-bottom:-6px;"> Jamie Jones](https://github.com/JollyJones)
+- [<img src="https://github.com/JollyJones101.png" alt="" width="25" style="margin-bottom:-6px;"> Jamie Jones](https://github.com/JollyJones101)
