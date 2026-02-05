@@ -12,13 +12,16 @@ Het doel van dit project is het ontwikkelen van een **Podium-Tracking** systeem.
 
 ### Software
 
-De broncode voor de tracking algoritmes en aansturing is te vinden in de [Software](../Software) map. We maken gebruik van Python,OpenCV,YOLO,... voor de beeldverwerking en data-analyse.
+De broncode voor de tracking algoritmes en aansturing is te vinden in de [Software](../MotionTracking/Software) map. We maken gebruik van Python, OpenCV, YOLO,... voor de beeldverwerking en data-analyse.
 
 
 ### Documentatie
 
-De algemene documentatie voor het project is te vinden in de [Documentatie](../Documentatie) map. Hierin vind je technische specificaties, flowcharts en uitleg over de werking van het tracking algoritme.
+De algemene documentatie voor het project is te vinden in de [Documentatie](../MotionTracking/Documentatie) map. Hierin vind je technische specificaties, flowcharts en uitleg over de werking van het tracking algoritme.
 
+### Research
+
+Alle onderzoeken voor het project kan men terug vinden in de [Research](../Research) map. Hierin vind je gevonden informatie, ruwe datasheets,...
 
 ## Team
 
