@@ -6,7 +6,7 @@ from ultralytics import YOLO
 import socket
 
 # --- NETWERK SETUP ---
-UDP_IP = "127.0.0.1"
+UDP_IP = "10.10.1.70" 
 UDP_PORT = 5005
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
