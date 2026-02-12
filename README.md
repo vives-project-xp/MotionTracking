@@ -1,5 +1,6 @@
 # Motion Tracking
-
+[![VIVES](https://img.shields.io/badge/VIVES-Bachelor_Elektronica_ICT-blue?style=flat)](https://www.vives.be)
+[![Project Experience](https://img.shields.io/badge/Project_Experience-2.2-green?style=flat)](https://github.com/vives-project-xp)
 > Een podium-tracking systeem die licht/visuals aanstuurt door middel van bewegingen van de artiest op het podium
 
 
