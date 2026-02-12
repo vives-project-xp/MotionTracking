@@ -6,9 +6,9 @@ from ultralytics import YOLO
 import socket
 
 # --- CONFIGURATIE ---
-# LET OP: Gebruik "127.0.0.1" als alles op 1 pc draait.
+# gebruik 127.0.1 voor lokaal testen op dezelfde machine (loopback)
 # Gebruik het IP van de andere laptop als je via netwerk stuurt.
-TARGET_IP = "10.10.1.70"
+TARGET_IP = "127.0.0.1"
 UDP_PORT = 5005
 
 # --- SETUP ---
@@ -25,7 +25,7 @@ aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
 parameters = aruco.DetectorParameters()
 
 fixed_pts = None
-transform_matrix = None # We slaan de matrix hier op
+transform_matrix = None 
 start_lock_time = None
 is_locked = False
 required_stable_time = 2 # Iets korter gemaakt voor sneller testen
