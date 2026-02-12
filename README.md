@@ -36,12 +36,17 @@ Alle onderzoeken voor het project kan men terug vinden in de [Research](Research
 ## Planning
 
 ### Sprint 1 (Week 1-4):
-- [ ] Alle componenten besteld
-- [ ] Camera doen werken op Raspberry Pi + Scherm uittekenen
-- [ ] ...
+- [ ]  Alle componenten besteld
+- [ ] Camera doen werken op Raspberry Pi + Scherm herkennen met testcode
+- [ ] Radar Module onderzoeken + schema's maken
+- [ ] Visuals onderzoeken + hoe uit pi krijgen
 
 ### Sprint 2 (Week 5-8)
-- [ ] ...
+- [ ] Eerst prototype afgewerkt
+- [ ] Foto's & video's voor sociale media
+- [ ] Visual dynamisch kunnen aanpassen aan artiest
 
 ### Sprint 3 (Week 9-15)
-- [ ] ...
+- [ ] volledig werkende visuals show
+- [ ] eventuele uitbreidingen toepassen
+- [ ] documentatie afgewerkt
