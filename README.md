@@ -26,12 +26,12 @@ Alle onderzoeken voor het project kan men terug vinden in de [Research](Research
 
 ## Team
 
-| Team | taak |
+| Team | Afstudeerrichting |
 | --- | --- |
-| [<img src="https://github.com/Brent69420809.png" alt="" width="25" style="margin-bottom:-6px;"> Brent Vileyn](https://github.com/Brent69420809) | [Invullen] |
-| [<img src="https://github.com/EwoudBoutje.png" alt="" width="25" style="margin-bottom:-6px;"> EwoudBoutje](https://github.com/EwoudBoutje) | [Invullen] |
-| [<img src="https://github.com/JasonDeSmet2025.png" alt="" width="25" style="margin-bottom:-6px;"> Jason De Smet](https://github.com/JasonDeSmet2025) | [Invullen] |
-| [<img src="https://github.com/JollyJones101.png" alt="" width="25" style="margin-bottom:-6px;"> Jamie Jones](https://github.com/JollyJones101) | [Invullen] |
+| [<img src="https://github.com/Brent69420809.png" alt="" width="25" style="margin-bottom:-6px;"> Brent Vileyn](https://github.com/Brent69420809) | Elektronica |
+| [<img src="https://github.com/EwoudBoutje.png" alt="" width="25" style="margin-bottom:-6px;"> EwoudBoutje](https://github.com/EwoudBoutje) |  Network & System Admin  |
+| [<img src="https://github.com/JasonDeSmet2025.png" alt="" width="25" style="margin-bottom:-6px;"> Jason De Smet](https://github.com/JasonDeSmet2025) | Network & System Admin |
+| [<img src="https://github.com/JollyJones101.png" alt="" width="25" style="margin-bottom:-6px;"> Jamie Jones](https://github.com/JollyJones101) | Network & System Admin |
 
 ## Planning
 
