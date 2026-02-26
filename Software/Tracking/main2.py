@@ -13,9 +13,9 @@ import os
 # --- CONFIGURATIE ---
 CAMERA_INDEX = 0
 CAMERA_RES = (640, 480)
-SMOOTHING = 0.1
+SMOOTHING = 0.25             # Iets hoger gezet voor minder delay bij meerdere personen
 ARUCO_DICT = aruco.DICT_4X4_50
-REQUIRED_STABLE_TIME = 2      # Seconden dat marker stabiel moet zijn
+REQUIRED_STABLE_TIME = 2 
 
 # Kleuren
 ZWART = (0, 0, 0)
@@ -26,6 +26,7 @@ ROOD = (255, 0, 0)
 
 # --- PROCES 1: TRACKER (Camera + AI) ---
 def run_tracker(shared_queue, stop_event, is_calibrated_flag):
+    # Gebruik een lichtere imgsz voor minder delay op de Pi
     model = YOLO('yolov8n.pt')
 
     cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_V4L2)
@@ -62,15 +63,9 @@ def run_tracker(shared_queue, stop_event, is_calibrated_flag):
                 if all(id in points for id in [0, 1, 2, 3]):
                     if start_lock_time is None:
                         start_lock_time = time.time()
-                        print("[TRACKER] Markers gezien... stabiliseren...")
-
+                    
                     elapsed = time.time() - start_lock_time
-
-                    tl = points[0][0]
-                    tr = points[1][1]
-                    br = points[3][2]
-                    bl = points[2][3]
-
+                    tl, tr, br, bl = points[0][0], points[1][1], points[3][2], points[2][3]
                     temp_pts = np.array([tl, tr, br, bl], np.float32)
 
                     if elapsed >= REQUIRED_STABLE_TIME:
@@ -80,15 +75,21 @@ def run_tracker(shared_queue, stop_event, is_calibrated_flag):
                         transform_matrix = cv2.getPerspectiveTransform(src_pts, dst_pts)
                         local_locked = True
                         is_calibrated_flag.value = 1
-                        print("[TRACKER] Gebied vergrendeld! Start YOLO.")
+                        print("[TRACKER] Gebied vergrendeld! Start Multi-Tracking.")
                 else:
                     start_lock_time = None
         else:
-            results = model(frame, verbose=False, classes=[0], imgsz=192, stream=True)
-            detected = False
-            for r in results:
-                for box in r.boxes:
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+            # GEBRUIK .track VOOR MEERDERE PERSONEN MET ID's
+            results = model.track(frame, persist=True, verbose=False, classes=[0], imgsz=160, tracker="botsort.yaml")
+            
+            tracked_people = {} # Dictionary: { id: (kx, ky) }
+
+            if results[0].boxes.id is not None:
+                boxes = results[0].boxes.xyxy.cpu().numpy()
+                ids = results[0].boxes.id.cpu().numpy().astype(int)
+
+                for box, obj_id in zip(boxes, ids):
+                    x1, y1, x2, y2 = box
                     center_x = int((x1 + x2) / 2)
                     center_y = int(y1 + (y2 - y1) * 0.3)
 
@@ -96,21 +97,20 @@ def run_tracker(shared_queue, stop_event, is_calibrated_flag):
                     if cv2.pointPolygonTest(poly_pts, (float(center_x), float(center_y)), False) >= 0:
                         p = np.array([[[center_x, center_y]]], dtype=np.float32)
                         tp = cv2.perspectiveTransform(p, transform_matrix)[0][0]
-                        kx = np.clip(tp[0], 0.0, 1.0)
-                        ky = np.clip(tp[1], 0.0, 1.0)
-                        try:
-                            shared_queue.put((float(kx), float(ky)), block=False)
-                        except:
-                            pass
-                        detected = True
-                        break
-                if detected: break
+                        kx, ky = np.clip(tp[0], 0.0, 1.0), np.clip(tp[1], 0.0, 1.0)
+                        
+                        tracked_people[obj_id] = (float(kx), float(ky))
+
+            # Stuur de hele groep mensen door naar de visualizer
+            try:
+                shared_queue.put(tracked_people, block=False)
+            except:
+                pass
 
     cap.release()
 
 def draw_dynamic_arrow(surface, color, start, end, thickness=10):
-    dx = end[0] - start[0]
-    dy = end[1] - start[1]
+    dx, dy = end[0] - start[0], end[1] - start[1]
     dist = math.hypot(dx, dy)
     if dist < 40: return
     angle = math.atan2(dy, dx)
@@ -128,63 +128,74 @@ def run_visualizer(shared_queue, stop_event, is_calibrated_flag):
     pygame.mouse.set_visible(False)
     clock = pygame.time.Clock()
 
-    MARKER_SIZE = 200
-    MARGIN = 50
+    MARKER_SIZE, MARGIN = 200, 50
     MARKER_DIR = "Markers" 
 
-    # --- MARKERS LADEN UIT SUBMAP ---
     try:
-        m0 = pygame.transform.scale(pygame.image.load(os.path.join(MARKER_DIR, "marker0.png")), (MARKER_SIZE, MARKER_SIZE))
-        m1 = pygame.transform.scale(pygame.image.load(os.path.join(MARKER_DIR, "marker1.png")), (MARKER_SIZE, MARKER_SIZE))
-        m2 = pygame.transform.scale(pygame.image.load(os.path.join(MARKER_DIR, "marker2.png")), (MARKER_SIZE, MARKER_SIZE))
-        m3 = pygame.transform.scale(pygame.image.load(os.path.join(MARKER_DIR, "marker3.png")), (MARKER_SIZE, MARKER_SIZE))
-    except Exception as e:
-        print(f"WAARSCHUWING: Marker plaatjes niet gevonden in '{MARKER_DIR}'! {e}")
-        m0 = m1 = m2 = m3 = pygame.Surface((MARKER_SIZE, MARKER_SIZE))
-        m0.fill(ROOD)
+        m = [pygame.transform.scale(pygame.image.load(os.path.join(MARKER_DIR, f"marker{i}.png")), (MARKER_SIZE, MARKER_SIZE)) for i in range(4)]
+    except:
+        m = [pygame.Surface((MARKER_SIZE, MARKER_SIZE)) for _ in range(4)]
+        for surf in m: surf.fill(ROOD)
 
-    current_x, current_y = WIDTH / 2, HEIGHT / 2
-    target_x, target_y = WIDTH / 2, HEIGHT / 2
+    # Dictionary om de huidige soepele posities per ID vast te houden
+    # { id: [current_x, current_y] }
+    smooth_positions = {}
 
     print("[VISUALIZER] Wachten op kalibratie...")
 
-    running = True
-    while running:
+    while not stop_event.is_set():
         for event in pygame.event.get():
-            if event.type == pygame.QUIT: running = False
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE: running = False
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE: stop_event.set()
 
         if is_calibrated_flag.value == 0:
             screen.fill(WIT)
-            screen.blit(m0, (MARGIN, MARGIN))
-            screen.blit(m1, (WIDTH - MARKER_SIZE - MARGIN, MARGIN))
-            screen.blit(m2, (MARGIN, HEIGHT - MARKER_SIZE - MARGIN))
-            screen.blit(m3, (WIDTH - MARKER_SIZE - MARGIN, HEIGHT - MARKER_SIZE - MARGIN))
-            font = pygame.font.SysFont(None, 40)
-            text = font.render("Kalibratie: Zorg dat de camera alle markers ziet...", True, ZWART)
-            screen.blit(text, (WIDTH//2 - text.get_width()//2, HEIGHT//2))
+            screen.blit(m[0], (MARGIN, MARGIN))
+            screen.blit(m[1], (WIDTH - MARKER_SIZE - MARGIN, MARGIN))
+            screen.blit(m[2], (MARGIN, HEIGHT - MARKER_SIZE - MARGIN))
+            screen.blit(m[3], (WIDTH - MARKER_SIZE - MARGIN, HEIGHT - MARKER_SIZE - MARGIN))
+            pygame.display.flip()
         else:
+            # Data ophalen (de nieuwste dictionary met alle mensen)
+            new_data = None
             try:
-                new_pos = None
                 while not shared_queue.empty():
-                    new_pos = shared_queue.get_nowait()
-                if new_pos:
-                    target_x = new_pos[0] * WIDTH
-                    target_y = new_pos[1] * HEIGHT
+                    new_data = shared_queue.get_nowait()
             except: pass
 
-            current_x += (target_x - current_x) * SMOOTHING
-            current_y += (target_y - current_y) * SMOOTHING
-
             screen.fill(ZWART)
-            draw_dynamic_arrow(screen, NEON_GEEL, (WIDTH//2, HEIGHT//2), (int(current_x), int(current_y)))
-            pygame.draw.circle(screen, NEON_BLAUW, (int(current_x), int(current_y)), 20, 3)
-            pygame.draw.circle(screen, NEON_GEEL, (int(current_x), int(current_y)), 8)
 
-        pygame.display.flip()
+            if new_data:
+                # Update posities voor actieve ID's
+                active_ids = list(new_data.keys())
+                
+                for obj_id, (kx, ky) in new_data.items():
+                    target_x, target_y = kx * WIDTH, ky * HEIGHT
+                    
+                    if obj_id not in smooth_positions:
+                        smooth_positions[obj_id] = [target_x, target_y]
+                    else:
+                        # Bereken smoothing voor dit specifieke ID
+                        smooth_positions[obj_id][0] += (target_x - smooth_positions[obj_id][0]) * SMOOTHING
+                        smooth_positions[obj_id][1] += (target_y - smooth_positions[obj_id][1]) * SMOOTHING
+
+                # Verwijder ID's die niet meer in beeld zijn (optioneel, voor opschoning)
+                # In een echte installatie zou je een timeout kunnen toevoegen
+                current_ids = list(smooth_positions.keys())
+                for cid in current_ids:
+                    if cid not in active_ids:
+                        del smooth_positions[cid]
+
+            # Teken alle actieve pijlen
+            for obj_id, pos in smooth_positions.items():
+                curr_x, curr_y = int(pos[0]), int(pos[1])
+                draw_dynamic_arrow(screen, NEON_GEEL, (WIDTH//2, HEIGHT//2), (curr_x, curr_y))
+                pygame.draw.circle(screen, NEON_BLAUW, (curr_x, curr_y), 20, 3)
+                pygame.draw.circle(screen, NEON_GEEL, (curr_x, curr_y), 8)
+
+            pygame.display.flip()
+        
         clock.tick(60)
 
-    stop_event.set()
     pygame.quit()
     sys.exit()
 

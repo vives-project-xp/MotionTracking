@@ -6,25 +6,22 @@ import time
 import math
 import sys
 import multiprocessing
-import ctypes
+import random
 from ultralytics import YOLO
 import os
 
 # --- CONFIGURATIE ---
 CAMERA_INDEX = 0
 CAMERA_RES = (640, 480)
-SMOOTHING = 0.1
 ARUCO_DICT = aruco.DICT_4X4_50
-REQUIRED_STABLE_TIME = 2      # Seconden dat marker stabiel moet zijn
+REQUIRED_STABLE_TIME = 2
 
 # Kleuren
 ZWART = (0, 0, 0)
 WIT = (255, 255, 255)
-NEON_GEEL = (255, 255, 0)
-NEON_BLAUW = (0, 255, 255)
 ROOD = (255, 0, 0)
 
-# --- PROCES 1: TRACKER (Camera + AI) ---
+
 def run_tracker(shared_queue, stop_event, is_calibrated_flag):
     model = YOLO('yolov8n.pt')
 
@@ -108,45 +105,81 @@ def run_tracker(shared_queue, stop_event, is_calibrated_flag):
 
     cap.release()
 
-def draw_dynamic_arrow(surface, color, start, end, thickness=10):
-    dx = end[0] - start[0]
-    dy = end[1] - start[1]
-    dist = math.hypot(dx, dy)
-    if dist < 40: return
-    angle = math.atan2(dy, dx)
-    pygame.draw.line(surface, color, start, end, thickness)
-    head_size = 40 + (dist * 0.02)
-    p1 = (end[0] - head_size * math.cos(angle - 0.5), end[1] - head_size * math.sin(angle - 0.5))
-    p2 = (end[0] - head_size * math.cos(angle + 0.5), end[1] - head_size * math.sin(angle + 0.5))
-    pygame.draw.polygon(surface, color, [end, p1, p2])
+# --- KLASSE VOOR DE VISUALS (Aangepast voor "Orbit" effect) ---
+class Particle:
+    def __init__(self, x, y, velocity_x, velocity_y, speed_intensity):
+        self.x = x
+        self.y = y
+        # Deeltjes bewegen nu rustiger rondom de persoon, niet direct wegvliegend
+        # Ze krijgen een lichte draaiing mee
+        angle_movement = math.atan2(velocity_y, velocity_x) + random.uniform(-0.5, 0.5)
+        speed = random.uniform(1, 3) + (speed_intensity * 0.1)
 
+        self.vx = math.cos(angle_movement) * speed
+        self.vy = math.sin(angle_movement) * speed
+
+        self.life = 255
+        self.decay = random.randint(4, 10) # Iets snellere decay
+
+        # Kleuren (meer "magisch" palet)
+        if speed_intensity > 15: # Rennen = Fel cyaan/wit
+            self.size = random.randint(5, 10)
+            self.color = (200, 255, 255)
+        elif speed_intensity > 5: # Lopen = Paars/Roze
+            self.size = random.randint(3, 7)
+            self.color = (255, 100, 255)
+        else: # Stilstaan = Diep blauw
+            self.size = random.randint(2, 5)
+            self.color = (50, 100, 255)
+
+    def update(self):
+        self.x += self.vx
+        self.y += self.vy
+        self.life -= self.decay
+        self.size -= 0.05
+
+    def draw(self, surface):
+        if self.life > 0 and self.size > 0:
+            # Simpele alpha fade
+            fade_factor = max(0, min(1, self.life / 255.0))
+            r = int(self.color[0] * fade_factor)
+            g = int(self.color[1] * fade_factor)
+            b = int(self.color[2] * fade_factor)
+            pygame.draw.circle(surface, (r, g, b), (int(self.x), int(self.y)), int(self.size))
+
+# --- PROCES 2: VISUALIZER (Aangepast) ---
 def run_visualizer(shared_queue, stop_event, is_calibrated_flag):
     pygame.init()
     info = pygame.display.Info()
     WIDTH, HEIGHT = info.current_w, info.current_h
-    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
+    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN | pygame.DOUBLEBUF | pygame.HWSURFACE)
     pygame.mouse.set_visible(False)
     clock = pygame.time.Clock()
 
+    # --- MARKER LOADING (JOUW CODE) ---
     MARKER_SIZE = 200
     MARGIN = 50
-    MARKER_DIR = "Markers" 
-
-    # --- MARKERS LADEN UIT SUBMAP ---
+    MARKER_DIR = "Markers"
     try:
         m0 = pygame.transform.scale(pygame.image.load(os.path.join(MARKER_DIR, "marker0.png")), (MARKER_SIZE, MARKER_SIZE))
         m1 = pygame.transform.scale(pygame.image.load(os.path.join(MARKER_DIR, "marker1.png")), (MARKER_SIZE, MARKER_SIZE))
         m2 = pygame.transform.scale(pygame.image.load(os.path.join(MARKER_DIR, "marker2.png")), (MARKER_SIZE, MARKER_SIZE))
         m3 = pygame.transform.scale(pygame.image.load(os.path.join(MARKER_DIR, "marker3.png")), (MARKER_SIZE, MARKER_SIZE))
     except Exception as e:
-        print(f"WAARSCHUWING: Marker plaatjes niet gevonden in '{MARKER_DIR}'! {e}")
-        m0 = m1 = m2 = m3 = pygame.Surface((MARKER_SIZE, MARKER_SIZE))
-        m0.fill(ROOD)
+        print(f"WAARSCHUWING: {e}")
+        m0=m1=m2=m3 = pygame.Surface((MARKER_SIZE, MARKER_SIZE)); m0.fill(ROOD)
 
+    # Variabelen Visuals
     current_x, current_y = WIDTH / 2, HEIGHT / 2
     target_x, target_y = WIDTH / 2, HEIGHT / 2
+    particles = []
 
-    print("[VISUALIZER] Wachten op kalibratie...")
+    # Trail surface (iets donkerder voor meer contrast)
+    trail_surface = pygame.Surface((WIDTH, HEIGHT))
+    trail_surface.set_alpha(40)
+    trail_surface.fill(ZWART)
+
+    print("[VISUALIZER] Aura Engine gestart...")
 
     running = True
     while running:
@@ -154,6 +187,7 @@ def run_visualizer(shared_queue, stop_event, is_calibrated_flag):
             if event.type == pygame.QUIT: running = False
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE: running = False
 
+        # --- MODUS 1: KALIBRATIE ---
         if is_calibrated_flag.value == 0:
             screen.fill(WIT)
             screen.blit(m0, (MARGIN, MARGIN))
@@ -161,25 +195,74 @@ def run_visualizer(shared_queue, stop_event, is_calibrated_flag):
             screen.blit(m2, (MARGIN, HEIGHT - MARKER_SIZE - MARGIN))
             screen.blit(m3, (WIDTH - MARKER_SIZE - MARGIN, HEIGHT - MARKER_SIZE - MARGIN))
             font = pygame.font.SysFont(None, 40)
-            text = font.render("Kalibratie: Zorg dat de camera alle markers ziet...", True, ZWART)
+            text = font.render("Kalibratie...", True, ZWART)
             screen.blit(text, (WIDTH//2 - text.get_width()//2, HEIGHT//2))
+            pygame.display.flip()
+            clock.tick(30)
+            continue
+
+        # --- MODUS 2: LIVE VISUALS (AURA/ORBIT) ---
+
+        # 1. Data & Smoothing
+        try:
+            while not shared_queue.empty():
+                pos = shared_queue.get_nowait()
+                target_x = pos[0] * WIDTH
+                target_y = pos[1] * HEIGHT
+        except: pass
+
+        dx = target_x - current_x
+        dy = target_y - current_y
+        dist = math.hypot(dx, dy)
+
+        # Iets tragere smoothing zodat de aura "achterna" komt
+        current_x += dx * 0.15
+        current_y += dy * 0.15
+
+        # 2. Fade effect
+        screen.blit(trail_surface, (0, 0))
+
+        # 3. Nieuwe deeltjes spawnen RONDOM de persoon
+        spawn_count = int(dist) + 3
+        if spawn_count > 25: spawn_count = 25
+
+        for _ in range(spawn_count):
+            # Bepaal een willekeurige hoek en afstand rond het centrum
+            angle = random.uniform(0, 2 * math.pi)
+            # De straal van de wolk wordt groter als je sneller beweegt
+            radius_cloud = random.uniform(30, 60 + dist*2)
+
+            # Bereken spawn positie met offset
+            spawn_x = current_x + math.cos(angle) * radius_cloud
+            spawn_y = current_y + math.sin(angle) * radius_cloud
+
+            # Spawn deeltje
+            p = Particle(spawn_x, spawn_y, dx, dy, dist)
+            particles.append(p)
+
+        # 4. Deeltjes updaten en tekenen
+        for p in particles[:]:
+            p.update()
+            if p.life <= 0 or p.size <= 0:
+                particles.remove(p)
+            else:
+                p.draw(screen)
+
+        # 5. TEKEN DE "FORCEFIELD RINGS" (ipv de centrale stip)
+        # Kleur bepalen
+        if dist > 5:
+            ring_color = (200, 255, 255) # Fel cyaan bij beweging
         else:
-            try:
-                new_pos = None
-                while not shared_queue.empty():
-                    new_pos = shared_queue.get_nowait()
-                if new_pos:
-                    target_x = new_pos[0] * WIDTH
-                    target_y = new_pos[1] * HEIGHT
-            except: pass
+            ring_color = (50, 100, 255) # Diep blauw bij stilstand
 
-            current_x += (target_x - current_x) * SMOOTHING
-            current_y += (target_y - current_y) * SMOOTHING
+        # Pulserend effect voor de ringen
+        pulse1 = math.sin(time.time() * 4) * 5
+        pulse2 = math.cos(time.time() * 3) * 5
 
-            screen.fill(ZWART)
-            draw_dynamic_arrow(screen, NEON_GEEL, (WIDTH//2, HEIGHT//2), (int(current_x), int(current_y)))
-            pygame.draw.circle(screen, NEON_BLAUW, (int(current_x), int(current_y)), 20, 3)
-            pygame.draw.circle(screen, NEON_GEEL, (int(current_x), int(current_y)), 8)
+        # Teken 2 dunne ringen die om de persoon draaien
+        # De 'width' parameter (laatste getal) zorgt dat het een ring is en geen cirkel
+        pygame.draw.circle(screen, ring_color, (int(current_x), int(current_y)), int(50 + pulse1), 2)
+        pygame.draw.circle(screen, ring_color, (int(current_x), int(current_y)), int(70 + pulse2), 1)
 
         pygame.display.flip()
         clock.tick(60)
