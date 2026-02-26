@@ -8,7 +8,7 @@ import socket
 # --- CONFIGURATIE ---
 # gebruik 127.0.1 voor lokaal testen op dezelfde machine (loopback)
 # Gebruik het IP van de andere laptop als je via netwerk stuurt.
-TARGET_IP = "127.0.0.1"
+TARGET_IP = "10.10.239.216"
 UDP_PORT = 5005
 
 # --- SETUP ---

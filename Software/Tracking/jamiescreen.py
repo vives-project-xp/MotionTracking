@@ -11,7 +11,7 @@ from mediapipe.tasks.python import vision
 # --- CONFIGURATIE ---
 # LET OP: Gebruik "127.0.0.1" als alles op 1 pc draait.
 # Gebruik het IP van de andere laptop als je via netwerk stuurt.
-TARGET_IP = "10.10.1.70"
+TARGET_IP = "127.0.0.1"
 UDP_PORT = 5005
 
 # --- SETUP ---
