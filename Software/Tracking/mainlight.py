@@ -119,7 +119,7 @@ class Particle:
         self.vy = math.sin(angle_movement) * speed
 
         self.life = 255
-        self.decay = random.randint(4, 10) # Iets snellere decay
+        self.decay = random.randint(4, 10) 
 
         # Kleuren (meer "magisch" palet)
         if speed_intensity > 15: # Rennen = Fel cyaan/wit
