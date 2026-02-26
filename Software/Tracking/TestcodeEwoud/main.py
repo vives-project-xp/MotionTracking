@@ -6,7 +6,7 @@ import time
 import math
 import sys
 import multiprocessing
-import ctypes # Nodig voor gedeelde variabelen
+import ctypes 
 from ultralytics import YOLO
 import os
 
@@ -15,7 +15,7 @@ CAMERA_INDEX = 0
 CAMERA_RES = (640, 480)      
 SMOOTHING = 0.1              
 ARUCO_DICT = aruco.DICT_4X4_50
-REQUIRED_STABLE_TIME = 2     # Seconden dat marker stabiel moet zijn
+REQUIRED_STABLE_TIME = 2     
 
 # Kleuren
 ZWART = (0, 0, 0)
@@ -30,19 +30,21 @@ def run_tracker(shared_queue, stop_event, is_calibrated_flag):
     
     # V4L2 backend voor Raspberry Pi
     cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_V4L2)
-    # cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_DSHOW) # VOOR WINDOWS TESTEN
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_RES[0])
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_RES[1])
     cap.set(cv2.CAP_PROP_FPS, 30)
 
+    # --- ARUCO SETUP (NIEUWE METHODE) ---
     aruco_dict_obj = aruco.getPredefinedDictionary(ARUCO_DICT)
     parameters = aruco.DetectorParameters()
+    
+    # FIX: Maak een detector object aan (nodig voor nieuwe OpenCV versies)
+    detector = aruco.ArucoDetector(aruco_dict_obj, parameters)
 
     fixed_pts = None
     transform_matrix = None 
     start_lock_time = None
     
-    # Lokale variabele om niet steeds de shared flag te lezen
     local_locked = False 
 
     print("[TRACKER] Camera gestart. Zoeken naar projectie...")
@@ -56,7 +58,9 @@ def run_tracker(shared_queue, stop_event, is_calibrated_flag):
         # --- FASE 1: KALIBRATIE ---
         if not local_locked:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            corners, ids, _ = aruco.detectMarkers(gray, aruco_dict_obj, parameters=parameters)
+            
+            # FIX: Gebruik de detector.detectMarkers() in plaats van aruco.detectMarkers()
+            corners, ids, _ = detector.detectMarkers(gray)
             
             points = {}
             if ids is not None:
@@ -71,7 +75,6 @@ def run_tracker(shared_queue, stop_event, is_calibrated_flag):
                     
                     elapsed = time.time() - start_lock_time
                     
-                    # Volgorde: 0=TL, 1=TR, 3=BR, 2=BL
                     tl = points[0][0] 
                     tr = points[1][1] 
                     br = points[3][2] 
@@ -82,13 +85,12 @@ def run_tracker(shared_queue, stop_event, is_calibrated_flag):
                     if elapsed >= REQUIRED_STABLE_TIME:
                         fixed_pts = temp_pts
                         
-                        # Matrix berekenen
                         src_pts = fixed_pts.reshape(4, 2).astype(np.float32)
                         dst_pts = np.array([[0,0], [1,0], [1,1], [0,1]], dtype=np.float32)
                         transform_matrix = cv2.getPerspectiveTransform(src_pts, dst_pts)
                         
                         local_locked = True
-                        is_calibrated_flag.value = 1 # SEINTJE NAAR VISUALIZER!
+                        is_calibrated_flag.value = 1 
                         print("[TRACKER] Gebied vergrendeld! Start YOLO.")
                 else:
                     start_lock_time = None
@@ -104,14 +106,12 @@ def run_tracker(shared_queue, stop_event, is_calibrated_flag):
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     
                     center_x = int((x1 + x2) / 2)
-                    center_y = int(y1 + (y2 - y1) * 0.3) # Borsthoogte
+                    center_y = int(y1 + (y2 - y1) * 0.3) 
 
-                    # Check of punt binnen het gekalibreerde vlak valt
                     if cv2.pointPolygonTest(fixed_pts, (float(center_x), float(center_y)), False) >= 0:
                         p = np.array([[[center_x, center_y]]], dtype=np.float32)
                         tp = cv2.perspectiveTransform(p, transform_matrix)[0][0]
                         
-                        # Clip waarden tussen 0.0 en 1.0
                         kx = np.clip(tp[0], 0.0, 1.0)
                         ky = np.clip(tp[1], 0.0, 1.0)
 
@@ -177,23 +177,19 @@ def run_visualizer(shared_queue, stop_event, is_calibrated_flag):
 
         # --- FASE 1: KALIBRATIE BEELD ---
         if is_calibrated_flag.value == 0:
-            # HIER AANGEPAST: WITTE ACHTERGROND VOOR BETER CONTRAST
             screen.fill(WIT) 
             
-            # Teken markers
             screen.blit(m0, (MARGIN, MARGIN))
             screen.blit(m1, (WIDTH - MARKER_SIZE - MARGIN, MARGIN))
             screen.blit(m2, (MARGIN, HEIGHT - MARKER_SIZE - MARGIN))
             screen.blit(m3, (WIDTH - MARKER_SIZE - MARGIN, HEIGHT - MARKER_SIZE - MARGIN))
 
-            # Tekstje erbij (Nu in ZWART omdat achtergrond wit is)
             font = pygame.font.SysFont(None, 40)
             text = font.render("Zorg dat de camera alle 4 de markers ziet...", True, ZWART)
             screen.blit(text, (WIDTH//2 - text.get_width()//2, HEIGHT//2))
 
         # --- FASE 2: TRACKING BEELD ---
         else:
-            # Data ophalen
             try:
                 new_pos = None
                 while not shared_queue.empty():
@@ -203,11 +199,9 @@ def run_visualizer(shared_queue, stop_event, is_calibrated_flag):
                     target_y = new_pos[1] * HEIGHT
             except: pass
 
-            # Smoothing
             current_x += (target_x - current_x) * SMOOTHING
             current_y += (target_y - current_y) * SMOOTHING
 
-            # Achtergrond weer ZWART voor de lichtshow
             screen.fill(ZWART)
             
             draw_dynamic_arrow(screen, NEON_GEEL, (WIDTH//2, HEIGHT//2), (int(current_x), int(current_y)))
