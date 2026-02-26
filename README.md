@@ -24,7 +24,7 @@ De algemene documentatie voor het project is te vinden in de [Documentatie](Docu
 
 Alle onderzoeken voor het project kan men terug vinden in de [Research](Research/README.md) map. Hierin vind je gevonden informatie, ruwe datasheets,...
 
-   <img src="archief/images/IntroductieposterPX9.png" height="auto">
+<img src="./Archief/Images/IntroductieposterPX9.png" height="auto">
 
 
 ## Team
