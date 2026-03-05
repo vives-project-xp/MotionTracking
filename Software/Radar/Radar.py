@@ -2,6 +2,11 @@ import serial
 import math
 
 
+
+
+# Raspberry pi aanluiting   pin2(5v) = VCC  |  pin6 = GND | pin 10 = TX   |  pin 8 = RX 
+
+
 class RadarTarget:
     def __init__(self):
         self.x = 0
