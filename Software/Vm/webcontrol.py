@@ -14,7 +14,7 @@ HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Aura Pro Control</title>
+    <title>Tracking control panel</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #111; color: white; margin: 0; padding: 20px; }
@@ -31,7 +31,7 @@ HTML = """
     </style>
 </head>
 <body>
-    <h1>✨ Aura Engine Pro</h1>
+    <h1>✨ Tracking control panel</h1>
     <div class="card">
         <h3>Effect Modus</h3>
         <button class="MAGIC" onclick="update('mode', 'MAGIC')">MAGIC</button>
