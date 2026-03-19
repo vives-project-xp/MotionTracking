@@ -4,6 +4,7 @@ import math
 import cv2
 import os
 import numpy as np
+import requests # Nieuw voor het downloaden van de VM
 
 # --- 1. EFFECT PRESETS ---
 EFFECTS = {
@@ -13,15 +14,19 @@ EFFECTS = {
     "GHOST": {"colors": [(200, 200, 255), (255, 255, 255)], "gravity": 0.02, "decay": (2, 5), "size": (2, 4), "spawn": 4, "trail": 10}
 }
 
-# --- 2. BACKGROUND MANAGER (Kleuren, Afbeeldingen & Video) ---
+# --- 2. BACKGROUND MANAGER ---
 class BackgroundManager:
-    def __init__(self, width, height):
+    def __init__(self, width, height, vm_ip):
         self.width = width
         self.height = height
+        self.vm_ip = vm_ip
         self.bg_type = 'color'
         self.bg_val = '0,0,0'
         self.cap = None
         self.img_surf = None
+        
+        # Zorg dat de Media map bestaat op de Pi
+        os.makedirs("Media", exist_ok=True)
 
     def update_config(self, bg_type, bg_val):
         if self.bg_type == bg_type and self.bg_val == bg_val:
@@ -30,25 +35,46 @@ class BackgroundManager:
         self.bg_type = bg_type
         self.bg_val = bg_val
 
-        # Sluit oude video als we iets anders laden
         if self.cap:
             self.cap.release()
             self.cap = None
 
-        if bg_type == 'image':
-            try:
-                img = pygame.image.load(os.path.join("Media", bg_val)).convert()
-                self.img_surf = pygame.transform.scale(img, (self.width, self.height))
-            except Exception as e:
-                print(f"Kan afbeelding niet laden: {e}")
-                self.bg_type = 'color'; self.bg_val = '0,0,0'
-                
-        elif bg_type == 'video':
-            try:
-                self.cap = cv2.VideoCapture(os.path.join("Media", bg_val))
-            except Exception as e:
-                print(f"Kan video niet laden: {e}")
-                self.bg_type = 'color'; self.bg_val = '0,0,0'
+        if bg_type in ['image', 'video']:
+            local_path = os.path.join("Media", bg_val)
+            
+            # --- AUTO DOWNLOAD LOGICA ---
+            if not os.path.exists(local_path):
+                print(f"[SYNC] Bestand {bg_val} ontbreekt! Downloaden van VM...")
+                try:
+                    # Omdat je poort 80 gebruikt op de VM, hebben we geen :5000 nodig
+                    r = requests.get(f"http://{self.vm_ip}/media/{bg_val}", timeout=10)
+                    if r.status_code == 200:
+                        with open(local_path, 'wb') as f:
+                            f.write(r.content)
+                        print(f"[SYNC] Download {bg_val} succesvol!")
+                    else:
+                        print("[SYNC] Kon bestand niet vinden op VM.")
+                        self.bg_type = 'color'; self.bg_val = '0,0,0'
+                        return
+                except Exception as e:
+                    print(f"[SYNC] Netwerkfout tijdens downloaden: {e}")
+                    self.bg_type = 'color'; self.bg_val = '0,0,0'
+                    return
+
+            # --- BESTAND INLADEN ---
+            if bg_type == 'image':
+                try:
+                    img = pygame.image.load(local_path).convert()
+                    self.img_surf = pygame.transform.scale(img, (self.width, self.height))
+                except Exception as e:
+                    print(f"Laadfout image: {e}")
+                    self.bg_type = 'color'; self.bg_val = '0,0,0'
+            elif bg_type == 'video':
+                try:
+                    self.cap = cv2.VideoCapture(local_path)
+                except Exception as e:
+                    print(f"Laadfout video: {e}")
+                    self.bg_type = 'color'; self.bg_val = '0,0,0'
 
     def draw(self, screen):
         if self.bg_type == 'color':
@@ -64,19 +90,17 @@ class BackgroundManager:
         elif self.bg_type == 'video' and self.cap:
             ret, frame = self.cap.read()
             if not ret:
-                # Video is klaar, start opnieuw (Looping)
                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 ret, frame = self.cap.read()
             
             if ret:
-                # Converteer OpenCV frame naar Pygame Surface
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame = cv2.resize(frame, (self.width, self.height))
-                frame = np.swapaxes(frame, 0, 1) # Verwissel X en Y as voor Pygame
+                frame = np.swapaxes(frame, 0, 1)
                 pygame.surfarray.blit_array(screen, frame)
 
 
-# --- 3. DEELTJES SYSTEEM (Voor de Glow/Neon effecten) ---
+# --- 3. DEELTJES SYSTEEM ---
 class Particle:
     def __init__(self, x, y, cfg, is_hand=False):
         self.x = x; self.y = y

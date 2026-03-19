@@ -13,14 +13,16 @@ from ultralytics import YOLO
 from effects_lib import EFFECTS, Particle, BackgroundManager, draw_layer_aura
 
 # --- CONFIGURATIE ---
-VM_IP = "0.0.0.0" 
+VM_IP = "10.20.10.18"  # Zorg dat dit klopt met jouw VM IP!
 ACTIVE_MODE = "FIRE"
 CAMERA_INDEX = 0
 CAMERA_RES = (640, 480)
 ARUCO_DICT = aruco.DICT_4X4_50
 REQUIRED_STABLE_TIME = 1.0
 
-ZWART = (0, 0, 0); WIT = (255, 255, 255); ROOD = (255, 0, 0)
+ZWART = (0, 0, 0)
+WIT = (255, 255, 255)
+ROOD = (255, 0, 0)
 
 # --- TRACKER ---
 def run_tracker(shared_queue, stop_event, is_calibrated_flag):
@@ -50,7 +52,6 @@ def run_tracker(shared_queue, stop_event, is_calibrated_flag):
                         dst_pts = np.array([[0,0], [1,0], [1,1], [0,1]], dtype=np.float32)
                         transform_matrix = cv2.getPerspectiveTransform(fixed_pts, dst_pts)
                         local_locked, is_calibrated_flag.value = True, 1
-                    
             else: start_lock_time = None
         else:
             results = model(frame, verbose=False, imgsz=160, stream=True)
@@ -101,7 +102,8 @@ def run_visualizer(shared_queue, stop_event, is_calibrated_flag):
     people_list = []
     particles = []
     
-    bg_manager = BackgroundManager(WIDTH, HEIGHT)
+    # BackgroundManager krijgt nu het VM_IP mee zodat hij media kan downloaden
+    bg_manager = BackgroundManager(WIDTH, HEIGHT, VM_IP)
     
     # Dit is de doorzichtige laag waarop de lasers/glow getekend worden
     effect_surface = pygame.Surface((WIDTH, HEIGHT)).convert()
@@ -125,10 +127,10 @@ def run_visualizer(shared_queue, stop_event, is_calibrated_flag):
             pygame.display.flip()
             continue
 
-        # Config ophalen van web paneel
+        # Config ophalen van web paneel (geen poort 5000 meer nodig!)
         if frame_count % 30 == 0:
             try:
-                r = requests.get(f"http://{VM_IP}:5000/get_config", timeout=0.05)
+                r = requests.get(f"http://{VM_IP}/get_config", timeout=0.05)
                 if r.status_code == 200:
                     data = r.json()
                     cfg = EFFECTS[data['mode']].copy()
@@ -142,6 +144,7 @@ def run_visualizer(shared_queue, stop_event, is_calibrated_flag):
                         'bg_val': data.get('bg_val', '0,0,0')
                     })
                     cfg['size'] = (cfg['current_size_val'], cfg['current_size_val']+4)
+                    
                     # Update achtergrond media player
                     bg_manager.update_config(cfg['bg_type'], cfg['bg_val'])
             except: pass
@@ -156,7 +159,6 @@ def run_visualizer(shared_queue, stop_event, is_calibrated_flag):
         bg_manager.draw(screen)
 
         # 2. EFFECT LAAG (Trails & Particles)
-        # Maak de effect laag een beetje donkerder zodat sporen uitdoven
         fade_overlay.set_alpha(cfg["trail"])
         effect_surface.blit(fade_overlay, (0,0))
 
@@ -170,11 +172,11 @@ def run_visualizer(shared_queue, stop_event, is_calibrated_flag):
             color_secondary = cfg["colors"][-1]
             scaled_hands = [(h[0]*WIDTH, h[1]*HEIGHT) for h in person["hands"]]
 
-            # Teken de Aura op de effect_surface
+            # Teken de Aura
             if cfg['draw_aura'] == 1:
                 draw_layer_aura(effect_surface, bx, v_y, scale, color_primary, color_secondary, current_time)
 
-            # Teken Particles op de effect_surface
+            # Teken Particles
             if cfg['draw_particles'] == 1:
                 for _ in range(cfg["spawn"]):
                     ang, r = random.uniform(0, 6.28), random.uniform(20, 60) * scale
@@ -190,8 +192,7 @@ def run_visualizer(shared_queue, stop_event, is_calibrated_flag):
             elif cfg['draw_particles'] == 1:
                 p.draw(effect_surface)
 
-        # 3. COMPOSITING: Plak de glow effecten OVER de achtergrond video/afbeelding
-        # BLEND_ADD zorgt voor het Neon / Light effect (zwarte kleuren in effect_surface worden onzichtbaar)
+        # 3. COMPOSITING: Plak de glow effecten OVER de achtergrond
         screen.blit(effect_surface, (0,0), special_flags=pygame.BLEND_ADD)
 
         pygame.display.flip()

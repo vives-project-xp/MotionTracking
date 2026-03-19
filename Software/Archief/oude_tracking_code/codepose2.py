@@ -10,7 +10,7 @@ from ultralytics import YOLO
 import requests
 
 # --- 1. CONFIGURATIE ---
-VM_IP = "10.20.1.21"
+VM_IP = "10.20.10.18"
 ACTIVE_MODE = "FIRE"
 CAMERA_INDEX = 0
 CAMERA_RES = (640, 480)
