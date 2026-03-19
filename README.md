@@ -26,6 +26,44 @@ Alle onderzoeken voor het project kan men terug vinden in de [Research](Research
 
 <img src="./Archief/Images/IntroductieposterPX9.png" height="auto">
 
+### Installatie
+#### Benodigdheden:
+- een vlakke muur
+- Projector
+- Raspberry Pi 5 (+ Halo processor)
+- USB Camera
+
+#### Stappen:
+
+1. **Clone** de github-repo op de Raspberry Pi 5 en op uw PC of VM
+
+2. Voer het volgende **commando** uit op uw PC of VM in de workspace:
+```bash
+Docker compose up -d
+```
+
+3. Sluit de **camera** en **projector** aan op de Raspberry Pi 5.
+
+4. Zorg ervoor dat de Projector en camera steeds goed gepositioneerd blijven(dit kan met een statief + plaat).
+
+5. Start het script **main.py** op de Raspberry Pi. 
+
+6. Laat de camera de fudicials tracken, als de fudicials dan verdwijnen zou de tracking moeten opgestart zijn.
+
+7. Surf naar het IP-adres van uw PC of VM op poort 80:
+```bash
+[IP-Adres]:80
+```
+
+### Gebruik
+1. Start alles op (zie installatie).
+
+2. Ga voor de camera staan/bewegen om effecten te zien op de projector.
+
+3. Pas achtergronden en effecten aan op de website om mooie visuals te krijgen.
+
+
+
 
 ## Team
 
