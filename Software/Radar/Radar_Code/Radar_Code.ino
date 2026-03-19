@@ -19,10 +19,14 @@ void loop() {
     RadarTarget tgt = radar.getTarget();
 
     if (tgt.detected) {
-      // Stuur ALLEEN de hoek naar de Serial Plotter
-      // De plotter verwacht een getal gevolgd door een nieuwe regel (\n)
-      Serial.println(tgt.angle);
-    }
+      Serial.print("Hoek:");
+      Serial.print(tgt.angle);
+      Serial.print(",");
+      Serial.print("Afstand:");
+      Serial.println(tgt.distance);
+} else {
+  Serial.println("0,0"); // Niets in bereik
+}
   }
   
   // We houden de delay laag voor een vloeiende lijn in de plotter
