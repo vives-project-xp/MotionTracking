@@ -1,13 +1,15 @@
 import os
 from flask import Flask, render_template_string, request, jsonify, redirect, send_from_directory
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
-# Maak de Media map aan op de server als deze niet bestaat
+# Beveiliging: maximale uploadgrootte instellen (bijv. 500 MB)
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024 
+
 MEDIA_FOLDER = 'Media'
 os.makedirs(MEDIA_FOLDER, exist_ok=True)
 
-# Standaard instellingen
 state = {
     "mode": "MAGIC",
     "size": 5,
@@ -19,7 +21,7 @@ state = {
     "draw_lines": 0,
     "bg_type": "color",
     "bg_val": "0,0,0",
-    "tracker_bron": "camera"  # Standaard op camera
+    "tracker_bron": "camera" 
 }
 
 HTML = """
@@ -108,20 +110,6 @@ HTML = """
     </div>
 
     <div class="card">
-        <h3>3. Foreground Layers</h3>
-        <div class="toggle-group">
-            <label class="toggle-label"><input type="checkbox" checked onchange="update('draw_particles', this.checked ? 1 : 0)"> ✨ Particles Layer</label>
-            <label class="toggle-label"><input type="checkbox" checked onchange="update('draw_aura', this.checked ? 1 : 0)"> ⭕ Aura Rings Layer</label>
-        </div>
-
-        <div style="margin-top: 15px;">
-            <button class="btn-shape" onclick="update('shape', 'circle')">⚫ Circle</button>
-            <button class="btn-shape" onclick="update('shape', 'square')">⬛ Square</button>
-            <button class="btn-shape" onclick="update('shape', 'triangle')">▲ Triangle</button>
-        </div>
-    </div>
-
-    <div class="card">
         <h3>4. Modifiers</h3>
         <div class="slider-container">
             <span class="slider-label">Master Size:</span> <span class="slider-val" id="val_size">5</span>
@@ -173,7 +161,6 @@ HTML = """
 
 @app.route('/')
 def home():
-    # Lees alle bestanden in de Media map om de knoppen te genereren
     files = []
     if os.path.exists(MEDIA_FOLDER):
         files = [f for f in os.listdir(MEDIA_FOLDER) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.mp4', '.mov', '.avi'))]
@@ -189,16 +176,20 @@ def update():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'file' not in request.files: return redirect('/')
+    if 'file' not in request.files: 
+        return redirect('/')
+    
     file = request.files['file']
     if file.filename != '':
-        # Sla het bestand op in de Media map van de VM/PC
-        file.save(os.path.join(MEDIA_FOLDER, file.filename))
-    # Herlaad de pagina, de nieuwe knop staat er nu bij!
+        # Maak de bestandsnaam veilig
+        filename = secure_filename(file.filename)
+        try:
+            file.save(os.path.join(MEDIA_FOLDER, filename))
+        except Exception as e:
+            print(f"Fout bij opslaan: {e}") 
+            
     return redirect('/')
 
-# --- DEZE ROUTE IS CRUCIAAL ---
-# Hiermee kan de Raspberry Pi het geüploade bestand downloaden via HTTP
 @app.route('/media/<filename>')
 def serve_media(filename):
     return send_from_directory(MEDIA_FOLDER, filename)
@@ -208,5 +199,5 @@ def get_config():
     return jsonify(state)
 
 if __name__ == '__main__':
-    # Start de server op poort 80
+    # Dit is nu alleen nog voor als je het script handmatig via Python test
     app.run(host='0.0.0.0', port=80, threaded=True)
