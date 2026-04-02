@@ -59,14 +59,14 @@ void loop() {
       float angleRad = tgt.angle * (PI / 180.0);
       
       // Bereken X en Y
-      float x = tgt.distance * cos(angleRad);
-      float y = tgt.distance * sin(angleRad);
+      float x = tgt.x;
+      float y = tgt.y;
       
       // Z-as is afhankelijk van je radar. Standaard 2D radars hebben dit niet.
       float z = 0.0; 
 
       // Maak de string voor de Arduino: "X,Y,Z,angle,distance"
-      String payload1 = String(x, 2) + "," + String(y, 2) + "," + String(z, 2) + "," + String(tgt.angle) + "," + String(tgt.distance);
+      String payload1 = String(x, 2) + "," + String(y, 2);
       String payload2 = String(tgt.angle) + "," + String(tgt.distance);
       
       client.publish("vj/radar_servo", payload1.c_str());
@@ -76,7 +76,7 @@ void loop() {
       
     } else {
       // Niemand gedetecteerd
-      client.publish("vj/radar_servo", "0,0,0,0,0"); 
+      client.publish("vj/radar_servo", "0,0"); 
       client.publish("vj/radar", "0,0"); 
     }
   }
