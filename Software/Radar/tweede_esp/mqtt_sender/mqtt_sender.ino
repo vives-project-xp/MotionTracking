@@ -26,33 +26,46 @@ void setup_wifi() {
   Serial.println("\nWiFi verbonden!");
 }
 
-// Deze functie wordt aangeroepen zodra er een nieuw MQTT bericht is
+// Deze functie wordt aangeroepen zodra er een nieuw MQTT bericht is op een van de topics
 void callback(char* topic, byte* payload, unsigned int length) {
   String message = "";
   for (int i = 0; i < length; i++) {
     message += (char)payload[i];
   }
 
-  // 1. Print naar Seriële Monitor (voor debugging op je PC)
-  Serial.print("MQTT Ontvangen op [");
+  // Debugging naar PC monitor
+  Serial.print("Bericht op [");
   Serial.print(topic);
   Serial.print("]: ");
   Serial.println(message);
 
-  // 2. Stuur de string direct door naar de Arduino Uno via Serial1
-  // We gebruiken println() zodat de Arduino weet wanneer de regel klaar is (\n)
-  Serial1.println(message); 
+  // We sturen de data door naar de Arduino Uno.
+  // We checken van welk topic het komt om een label mee te sturen
+  if (String(topic) == "vj/radar") {
+    // Stel dat dit bericht "X:100,Y:200" bevat
+    Serial1.println(message); 
+  } 
+  else if (String(topic) == "vj/radar_servo") {
+    // Stel dat dit bericht "A:45" bevat
+    // We zorgen dat er altijd een 'A:' label bij staat voor de Uno parser
+    if (message.indexOf("A:") == -1) {
+      Serial1.print("A:");
+    }
+    Serial1.println(message);
+  }
 }
 
 void reconnect() {
   while (!client.connected()) {
     Serial.print("Verbinden met MQTT...");
-    // Let op: Elke MQTT client moet een UNIEKE naam hebben!
     if (client.connect("ESP32_Radar_Ontvanger")) {
       Serial.println("Verbonden");
       
-      // Abonneer op het topic met de servo data (X,Y,Z,angle,distance)
-      client.subscribe("vj/radar_servo");
+      // ABONNEER OP BEIDE TOPICS
+      client.subscribe("vj/radar");       // Voor X en Y data
+      client.subscribe("vj/radar_servo"); // Voor de hoek (Angle) data
+      
+      Serial.println("Geabonneerd op vj/radar en vj/radar_servo");
     } else {
       Serial.print("Mislukt, rc=");
       Serial.print(client.state());
@@ -62,17 +75,13 @@ void reconnect() {
 }
 
 void setup() {
-  // Standaard Serial voor PC/Debugging
-  Serial.begin(115200);
+  Serial.begin(9600);
   
-  // Start Serial1 voor de communicatie met de Arduino Uno.
-  // We zetten deze op 9600 baud omdat de SoftwareSerial van de Uno dat beter aankan.
+  // Start Serial1 voor de Uno (9600 baud voor stabiliteit)
   Serial1.begin(9600, SERIAL_8N1, ARDUINO_RX_PIN, ARDUINO_TX_PIN);
 
   setup_wifi();
   client.setServer(mqtt_server, 1883);
-  
-  // Koppel de callback functie zodat we berichten kunnen ontvangen
   client.setCallback(callback);
 }
 
@@ -80,7 +89,5 @@ void loop() {
   if (!client.connected()) { 
     reconnect(); 
   }
-  
-  // Zorgt ervoor dat inkomende MQTT berichten worden verwerkt
   client.loop();
 }
