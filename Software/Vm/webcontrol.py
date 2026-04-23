@@ -34,10 +34,10 @@ state = {
     "draw_lines": 0,
     "bg_type": "color",
     "bg_val": "0,0,0",
-    "tracker_bron": "camera" 
+    "tracker_bron": "camera",
+    "target_person": "persoon1" # <--- Standaard doelwit voor radar
 }
 
-# --- Jouw originele HTML string ---
 HTML = """
 <!DOCTYPE html>
 <html>
@@ -53,6 +53,7 @@ HTML = """
         button:active { transform: scale(0.95); }
 
         .btn-tracker { width: 45%; background: #444; color: white; border: 2px solid #222; }
+        .btn-person { width: 28%; background: #444; color: white; border: 2px solid #222; font-size: 0.9em; }
         .btn-mode { width: 22%; font-size: 0.8em; }
         
         .media-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
@@ -85,7 +86,10 @@ HTML = """
     </style>
     <script>
         window.onload = function() {
-            highlightTracker('camera');
+            // Initialiseer de knoppen op basis van de huidige state
+            highlightTracker('{{ state.tracker_bron }}');
+            highlightPerson('{{ state.target_person }}');
+            
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('error') === 'invalid_file') {
                 alert("Fout: Alleen media bestanden (.jpg, .png, .mp4, etc.) zijn toegestaan!");
@@ -101,6 +105,13 @@ HTML = """
         <h3>🎯 Tracking Bron</h3>
         <button class="btn-tracker" id="btn_camera" onclick="update('tracker_bron', 'camera'); highlightTracker('camera')">📷 Camera (AI)</button>
         <button class="btn-tracker" id="btn_radar" onclick="update('tracker_bron', 'radar'); highlightTracker('radar')">📡 Radar (ESP32)</button>
+    </div>
+
+    <div class="card" id="card_radar_target" style="display: none;">
+        <h3>👤 Radar Doelwit</h3>
+        <button class="btn-person" id="btn_persoon1" onclick="update('target_person', 'persoon1'); highlightPerson('persoon1')">Persoon 1</button>
+        <button class="btn-person" id="btn_persoon2" onclick="update('target_person', 'persoon2'); highlightPerson('persoon2')">Persoon 2</button>
+        <button class="btn-person" id="btn_persoon3" onclick="update('target_person', 'persoon3'); highlightPerson('persoon3')">Persoon 3</button>
     </div>
 
     <div class="card">
@@ -178,8 +189,19 @@ HTML = """
         }
 
         function highlightTracker(bron) {
+            // Pas de borders van de knoppen aan
             document.getElementById('btn_camera').style.border = (bron === 'camera') ? '2px solid #2ecc71' : '2px solid transparent';
             document.getElementById('btn_radar').style.border = (bron === 'radar') ? '2px solid #2ecc71' : '2px solid transparent';
+            
+            // Toon of verberg het radar doelwit menu afhankelijk van de bron
+            document.getElementById('card_radar_target').style.display = (bron === 'radar') ? 'block' : 'none';
+        }
+
+        // NIEUW: Functie om de geselecteerde persoon te highlighten
+        function highlightPerson(person) {
+            document.getElementById('btn_persoon1').style.border = (person === 'persoon1') ? '2px solid #2ecc71' : '2px solid transparent';
+            document.getElementById('btn_persoon2').style.border = (person === 'persoon2') ? '2px solid #2ecc71' : '2px solid transparent';
+            document.getElementById('btn_persoon3').style.border = (person === 'persoon3') ? '2px solid #2ecc71' : '2px solid transparent';
         }
 
         function renameFile(oldName) {
@@ -213,20 +235,19 @@ HTML = """
 def home():
     files = []
     if os.path.exists(MEDIA_FOLDER):
-        # We lezen hier ook alleen bestanden in die in de lijst staan
         files = [f for f in os.listdir(MEDIA_FOLDER) if allowed_file(f)]
-    return render_template_string(HTML, media_files=files)
+    # We geven nu ook de 'state' mee aan de template, zodat de knoppen de juiste startwaarde krijgen
+    return render_template_string(HTML, media_files=files, state=state)
 
 @app.route('/update')
 def update():
-    # Update de interne state
     for key in state:
         val = request.args.get(key)
         if val is not None:
             state[key] = int(val) if val.isdigit() else val
             
-    
     try:
+        # Dit pusht nu ook automatisch "target_person": "persoonX" mee in de JSON!
         publish.single(MQTT_TOPIC_CONFIG, payload=json.dumps(state), hostname=MQTT_BROKER)
     except Exception as e:
         print(f"Fout bij sturen MQTT: {e}")
@@ -241,15 +262,12 @@ def upload_file():
     file = request.files['file']
     custom_name = request.form.get('custom_name', '').strip()
 
-    # Beveiligingscontrole
     if file.filename == '' or not allowed_file(file.filename):
         print(f"Upload geweigerd: {file.filename} is geen toegestaan mediatype.")
         return redirect('/?error=invalid_file')
 
-    # Haal de originele extensie op (.jpg, .mp4, etc.)
     original_ext = os.path.splitext(file.filename)[1].lower()
     
-    # Bepaal de definitieve bestandsnaam
     if custom_name:
         filename = secure_filename(custom_name) + original_ext
     else:
@@ -270,7 +288,6 @@ def rename_file():
     if old_name and new_name:
         old_path = os.path.join(MEDIA_FOLDER, secure_filename(old_name))
         
-        # Voorkom dat ze via de rename-functie alsnog een extensie kunnen omzeilen
         if os.path.exists(old_path) and allowed_file(old_name):
             ext = os.path.splitext(old_name)[1].lower()
             safe_new_name = secure_filename(new_name) + ext
@@ -280,7 +297,7 @@ def rename_file():
             except Exception as e:
                 print(f"Fout bij hernoemen: {e}")
     return "OK"
-# --- Route om bestanden te verwijderen ---
+
 @app.route('/delete', methods=['POST'])
 def delete_file():
     filename = request.form.get('filename')
@@ -289,7 +306,6 @@ def delete_file():
         safe_name = secure_filename(filename)
         filepath = os.path.join(MEDIA_FOLDER, safe_name)
         
-        # Check of het bestand bestaat en of het wel echt in de lijst van media bestanden hoort
         if os.path.exists(filepath) and allowed_file(safe_name):
             try:
                 os.remove(filepath)
