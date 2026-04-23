@@ -1,6 +1,8 @@
 import os
+import json
 from flask import Flask, render_template_string, request, jsonify, redirect, send_from_directory
 from werkzeug.utils import secure_filename
+import paho.mqtt.publish as publish
 
 app = Flask(__name__)
 
@@ -9,6 +11,10 @@ app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
 
 MEDIA_FOLDER = 'Media'
 os.makedirs(MEDIA_FOLDER, exist_ok=True)
+
+# --- MQTT Configuratie ---
+MQTT_BROKER = "127.0.0.1"  # Flask draait op dezelfde VM als de broker
+MQTT_TOPIC_CONFIG = "vj/config"
 
 # --- Alleen deze bestandstypes zijn toegestaan ---
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'mp4', 'mov', 'avi'}
@@ -31,6 +37,7 @@ state = {
     "tracker_bron": "camera" 
 }
 
+# --- Jouw originele HTML string ---
 HTML = """
 <!DOCTYPE html>
 <html>
@@ -77,13 +84,11 @@ HTML = """
         .slider-val { float: right; color: #2ecc71; font-weight: bold; }
     </style>
     <script>
-        // Check of URL een 'error' parameter heeft om een popup te tonen
         window.onload = function() {
             highlightTracker('camera');
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('error') === 'invalid_file') {
                 alert("Fout: Alleen media bestanden (.jpg, .png, .mp4, etc.) zijn toegestaan!");
-                // Verwijder de error uit de URL balk
                 window.history.replaceState({}, document.title, "/");
             }
         };
@@ -107,7 +112,7 @@ HTML = """
         </div>
 
         <div style="text-align: left; margin-bottom: 15px;">
-            <label style="color:#aaa; margin-bottom:10px; display:block;">Kies Media (Gedownload naar Pi):</label>
+            <label style="color:#aaa; margin-bottom:10px; display:block;">Kies Media:</label>
             {% for file in media_files %}
                 {% set type = 'video' if file.endswith(('.mp4', '.mov', '.avi')) else 'image' %}
                 <div class="media-row">
@@ -189,7 +194,7 @@ HTML = """
             }
         }
 
-        // NIEUW: Functie om bestanden te verwijderen
+        // Functie om bestanden te verwijderen
         function deleteFile(fileName) {
             if (confirm("Weet je zeker dat je '" + fileName + "' permanent wilt verwijderen?")) {
                 let formData = new FormData();
@@ -214,10 +219,18 @@ def home():
 
 @app.route('/update')
 def update():
+    # Update de interne state
     for key in state:
         val = request.args.get(key)
         if val is not None:
             state[key] = int(val) if val.isdigit() else val
+            
+    
+    try:
+        publish.single(MQTT_TOPIC_CONFIG, payload=json.dumps(state), hostname=MQTT_BROKER)
+    except Exception as e:
+        print(f"Fout bij sturen MQTT: {e}")
+        
     return "OK"
 
 @app.route('/upload', methods=['POST'])
@@ -262,15 +275,12 @@ def rename_file():
             ext = os.path.splitext(old_name)[1].lower()
             safe_new_name = secure_filename(new_name) + ext
             new_path = os.path.join(MEDIA_FOLDER, safe_new_name)
-            
             try:
                 os.rename(old_path, new_path)
             except Exception as e:
                 print(f"Fout bij hernoemen: {e}")
-                
     return "OK"
-
-# --- NIEUW: Route om bestanden te verwijderen ---
+# --- Route om bestanden te verwijderen ---
 @app.route('/delete', methods=['POST'])
 def delete_file():
     filename = request.form.get('filename')
