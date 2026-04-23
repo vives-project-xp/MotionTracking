@@ -54,9 +54,9 @@ def app_callback(pad, info, user_data):
             if len(landmarks) > 0:
                 p = landmarks[0].get_points()
                 people.append({
-                    "nose": [float(p[0].x()), float(p[0].y())],
-                    "left_hand": [float(p[9].x()), float(p[9].y())],
-                    "right_hand": [float(p[10].x()), float(p[10].y())]
+                    "nose": [float(p[0].x()) / width, float(p[0].y()) / height],
+                    "left_hand": [float(p[9].x()) / width, float(p[9].y()) / height],
+                    "right_hand": [float(p[10].x()) / width, float(p[10].y()) / height]
                 })
 
     payload = {"people": people, "markers": marker_data}
