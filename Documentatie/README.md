@@ -7,6 +7,9 @@ We kunnen hier vinden hoedat wij het samen stellen: https://www.youtube.com/watc
 Voor het grote rollement hebben wij dit ook uitgeprint en met gesmeerd zodat het vlot draait.
 Beide Stepper Motors namelijk de NEMA-17 Zijn verbonden met QShield v5d en het shield is verbonden aan de Arduino. Het QShield heeft min 12V nodig We voeden het met een adapter van 12V en 2A, Dit is genoeg voor onze stepper motors. En dan hebben wij deze lamp gemonteerd op het statief: https://www.bax-shop.be/nl/pinspot/eurolite-led-pst-12w-6000k-spot-smalle-beam-pinspot
 
+# Code Pan and Tilt Joint
+De code werd geschreven in C in Arduino IDE voor de Arduino Uno dat wij in dit project gebruiken. Je kunt de Code hier vinden: https://github.com/vives-project-xp/MotionTracking/tree/main/Software/Arduino
+
 
 # Ai-Thinker RD-03D Radar Documentatie
 
