@@ -50,13 +50,24 @@ def app_callback(pad, info, user_data):
 
     for d in detections:
         if d.get_label() == "person":
+            bbox = d.get_bbox()
+            xmin = bbox.xmin() * width
+            ymin = bbox.ymin() * height
+            xmax = bbox.xmax() * width
+            ymax = bbox.ymax() * height
             landmarks = d.get_objects_typed(hailo.HAILO_LANDMARKS)
             if len(landmarks) > 0:
                 p = landmarks[0].get_points()
+                nose_x = p[0].x() * (xmax - xmin) + xmin
+                nose_y = p[0].y() * (ymax - ymin) + ymin
+                lh_x = p[9].x() * (xmax - xmin) + xmin
+                lh_y = p[9].y() * (ymax - ymin) + ymin
+                rh_x = p[10].x() * (xmax - xmin) + xmin
+                rh_y = p[10].y() * (ymax - ymin) + ymin
                 people.append({
-                    "nose": [float(p[0].x()), float(p[0].y())],
-                    "left_hand": [float(p[9].x()), float(p[9].y())],
-                    "right_hand": [float(p[10].x()), float(p[10].y())]
+                    "nose": [nose_x / width, nose_y / height],
+                    "left_hand": [lh_x / width, lh_y / height],
+                    "right_hand": [rh_x / width, rh_y / height]
                 })
 
     payload = {"people": people, "markers": marker_data}

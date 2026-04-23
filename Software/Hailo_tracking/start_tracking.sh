@@ -21,4 +21,4 @@ export PYTHONPATH="$PYTHONPATH:/home/motiontracking/Tracking_Main"
 
 # --- STARTEN ---
 echo "Hailo tracker wordt opgestart..."
-python3 basic_pipelines/pose_estimation5.py --input /dev/video0
+python3 basic_pipelines/main.py --input /dev/video0
