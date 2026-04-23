@@ -3,7 +3,7 @@
 
 // --- JOUW INSTELLINGEN ---
 const char* ssid = "devbit";
-const char* password = "Dr@@dloos!";
+const char* password = "$2a$12$sAutUZSpJ39a3N3K/xF8eerg4KuSuQvitPb1BbLg/8U60n5rJxgua";
 const char* mqtt_server = "10.20.10.18"; // IP van je MQTT broker
 
 // --- PINNEN VOOR ARDUINO COMMUNICATIE ---
