@@ -1,0 +1,1 @@
+python pose_estimation5.py --input /dev/video0

@@ -10,7 +10,7 @@ from effects_lib import EFFECTS, Particle, BackgroundManager, draw_layer_aura
 
 # --- CONFIGURATIE ---
 VM_IP = "10.20.10.18"
-MQTT_TOPIC_TRACKING = "vj/hailo"
+MQTT_TOPIC = "vj/hailo"
 MQTT_TOPIC_CONFIG = "vj/config"
 
 # State variabelen
@@ -35,19 +35,9 @@ def on_message(client, userdata, msg):
     global payload, current_config, config_updated
     try:
         data = json.loads(msg.payload.decode())
-        
-        # 1. Is het tracking data?
-        if msg.topic == MQTT_TOPIC_TRACKING:
-            with data_lock:
-                payload = data
-                
-        # 2. Of is het een update vanaf de website?
-        elif msg.topic == MQTT_TOPIC_CONFIG:
-            with data_lock:
-                current_config.update(data)
-                config_updated = True # Geef het door aan de loop
-    except: 
-        pass
+        with data_lock:
+            payload = data
+    except: pass
 
 def run_visualizer():
     global payload, calib_done, transform_matrix, current_config, config_updated
@@ -56,8 +46,7 @@ def run_visualizer():
     client.on_message = on_message
     try:
         client.connect(VM_IP, 1883, 60)
-        # Abonneer op BEIDE topics tegelijk
-        client.subscribe([(MQTT_TOPIC_TRACKING, 0), (MQTT_TOPIC_CONFIG, 0)])
+        client.subscribe(MQTT_TOPIC)
         client.loop_start()
     except: 
         print("Fout: MQTT verbinding mislukt")
@@ -113,7 +102,7 @@ def run_visualizer():
             pygame.display.flip()
             continue
 
-        # --- NIEUWE MQTT CONFIG CHECK (Geen vertraging meer!) ---
+        # --- MQTT CONFIG CHECK ---
         if config_updated:
             with data_lock:
                 mode = current_config.get('mode', 'FIRE')

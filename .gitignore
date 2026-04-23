@@ -1,0 +1,3 @@
+venv_tracking/
+__pycache__/
+*.log
