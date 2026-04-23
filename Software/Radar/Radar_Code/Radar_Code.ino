@@ -187,6 +187,7 @@ void loop() {
   if (!client.connected()) reconnect();
   client.loop();
 
+<<<<<<< HEAD
   // Radar frame ophalen
   radar.tasks();
 
@@ -200,6 +201,34 @@ void loop() {
     if (tgt != nullptr && tgt->isValid()) {
       // Gebruik de ruwe X en Y uit de library (in mm)
       updateTracking((float)tgt->x, (float)tgt->y);
+=======
+  if (radar.update()) {
+    RadarTarget tgt = radar.getTarget();
+    if (tgt.detected) {
+      // Converteer hoek van graden naar radialen (nodig voor C++ cos/sin functies)
+      float angleRad = tgt.angle * (PI / 180.0);
+      
+      // Bereken X en Y
+      float x = tgt.x;
+      float y = tgt.y;
+      
+      // Z-as is afhankelijk van je radar. Standaard 2D radars hebben dit niet.
+      float z = 0.0; 
+
+      // Maak de string voor de Arduino: "X,Y,Z,angle,distance"
+      String payload1 = String(x, 2) + "," + String(y, 2);
+      String payload2 = String(tgt.angle) + "," + String(tgt.distance);
+      
+      client.publish("vj/radar_servo", payload1.c_str());
+      Serial.println("MQTT1: " + payload1);
+      client.publish("vj/radar", payload2.c_str());
+      Serial.println("MQTT2: " + payload2);
+      
+    } else {
+      // Niemand gedetecteerd
+      client.publish("vj/radar_servo", "0,0"); 
+      client.publish("vj/radar", "0,0"); 
+>>>>>>> 48900817d9c9b56eed3615f07ab75e09382294da
     }
   }
 
