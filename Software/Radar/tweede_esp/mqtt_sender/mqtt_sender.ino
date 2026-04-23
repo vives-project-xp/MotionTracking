@@ -1,83 +1,89 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
-// --- JOUW INSTELLINGEN ---
+// --- INSTELLINGEN ---
 const char* ssid = "devbit";
 const char* password = "Dr@@dloos!";
-const char* mqtt_server = "10.20.10.18"; // IP van je MQTT broker
+const char* mqtt_server = "10.20.10.18"; 
 
-// --- PINNEN VOOR ARDUINO COMMUNICATIE ---
-#define ARDUINO_RX_PIN 5 // Ontvangen van Arduino (optioneel)
-#define ARDUINO_TX_PIN 4 // Verzenden naar Arduino (Verbind met Pin 10 op Uno)
+// --- PINNEN VOOR UNO ---
+#define ARDUINO_RX_PIN 5 
+#define ARDUINO_TX_PIN 4 
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 void setup_wifi() {
   delay(10);
-  Serial.println();
-  Serial.print("Verbinden met ");
-  Serial.println(ssid);
+  Serial.println("\nWiFi verbinden...");
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\nWiFi verbonden!");
+  Serial.println("\nWiFi OK!");
 }
 
-// Deze functie wordt aangeroepen zodra er een nieuw MQTT bericht is op een van de topics
 void callback(char* topic, byte* payload, unsigned int length) {
+  // We maken het bericht leeg en vullen het met de binnengekomen tekens
   String message = "";
   for (int i = 0; i < length; i++) {
-    message += (char)payload[i];
+    char c = (char)payload[i];
+    // Filter: Alleen leesbare tekens toevoegen (cijfers, punten, komma's, letters)
+    if (isPrintable(c)) {
+      message += c;
+    }
   }
 
-  // Debugging naar PC monitor
-  Serial.print("Bericht op [");
-  Serial.print(topic);
-  Serial.print("]: ");
-  Serial.println(message);
+  String topicStr = String(topic);
 
-  // We sturen de data door naar de Arduino Uno.
-  // We checken van welk topic het komt om een label mee te sturen
-  if (String(topic) == "vj/radar") {
-    // Stel dat dit bericht "X:100,Y:200" bevat
-    Serial1.println(message); 
+  // --- HIER GEBEURT HET FILTEREN ---
+  
+  if (topicStr.endsWith("persoon1_servo")) {
+    Serial.print("Persoon 1 gedetecteerd: ");
+    Serial.println(message);
+    Serial1.print("P1:"); 
+    Serial1.println(message); // Stuur naar Uno
   } 
-  else if (String(topic) == "vj/radar_servo") {
-    // Stel dat dit bericht "A:45" bevat
-    // We zorgen dat er altijd een 'A:' label bij staat voor de Uno parser
-    if (message.indexOf("A:") == -1) {
-      Serial1.print("A:");
-    }
-    Serial1.println(message);
+  else if (topicStr.endsWith("persoon2_servo")) {
+    Serial.print("Persoon 2 gedetecteerd: ");
+    Serial.println(message);
+    Serial1.print("P2:"); 
+    Serial1.println(message); // Stuur naar Uno
+  } 
+  else if (topicStr.endsWith("persoon3_servo")) {
+    Serial.print("Persoon 3 gedetecteerd: ");
+    Serial.println(message);
+    Serial1.print("P3:"); 
+    Serial1.println(message); // Stuur naar Uno
   }
 }
 
 void reconnect() {
   while (!client.connected()) {
-    Serial.print("Verbinden met MQTT...");
-    if (client.connect("ESP32_Radar_Ontvanger")) {
-      Serial.println("Verbonden");
+    Serial.print("MQTT verbinding zoeken...");
+    String clientId = "ESP32_Radar_Final_" + String(random(0xffff), HEX);
+    
+    if (client.connect(clientId.c_str())) {
+      Serial.println("VERBONDEN!");
       
-      // ABONNEER OP BEIDE TOPICS
-      client.subscribe("vj/radar");       // Voor X en Y data
-      client.subscribe("vj/radar_servo"); // Voor de hoek (Angle) data
+      // We abonneren op de hele map 'vj/radar/'
+      client.subscribe("vj/radar/#");
       
-      Serial.println("Geabonneerd op vj/radar en vj/radar_servo");
+      Serial.println("Filter actief op: vj/radar/...");
     } else {
-      Serial.print("Mislukt, rc=");
+      Serial.print("Fout rc=");
       Serial.print(client.state());
-      delay(2000);
+      delay(5000);
     }
   }
 }
 
 void setup() {
-  Serial.begin(9600);
+  // PC Monitor op 115200
+  Serial.begin(115200); 
   
-  // Start Serial1 voor de Uno (9600 baud voor stabiliteit)
+  // Uno Communicatie op 9600
   Serial1.begin(9600, SERIAL_8N1, ARDUINO_RX_PIN, ARDUINO_TX_PIN);
 
   setup_wifi();
@@ -86,8 +92,8 @@ void setup() {
 }
 
 void loop() {
-  if (!client.connected()) { 
-    reconnect(); 
+  if (!client.connected()) {
+    reconnect();
   }
   client.loop();
 }
