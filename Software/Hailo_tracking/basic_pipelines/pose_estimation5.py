@@ -7,7 +7,6 @@ import numpy as np
 import cv2
 import hailo
 
-# --- andere files dat later erin komen: ---
 from hailo_apps.hailo_app_python.core.common.buffer_utils import get_caps_from_pad, get_numpy_from_buffer
 from hailo_apps.hailo_app_python.core.gstreamer.gstreamer_app import app_callback_class
 from hailo_apps.hailo_app_python.apps.pose_estimation.pose_estimation_pipeline import GStreamerPoseEstimationApp
@@ -66,6 +65,7 @@ def app_callback(pad, info, user_data):
 
 if __name__ == "__main__":
     app = GStreamerPoseEstimationApp(app_callback, app_callback_class())
-    app.video_sink = "fakesink"
-    app.use_frame = True
+    app.video_source = "/dev/video0"
+    app.video_sink = "fakesink" 
+    app.use_frame = True 
     app.run()
