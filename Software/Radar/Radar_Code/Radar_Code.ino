@@ -1,275 +1,99 @@
-#include <WiFi.h>
-#include <PubSubClient.h>
-#include <RD03D.h>
+#include <Arduino.h>
 
-// ============================================================
-//  INSTELLINGEN
-// ============================================================
-const char* ssid        = "devbit";
-const char* password    = "Dr@@dloos!";
-const char* mqtt_server = "10.20.10.18";
+#define RX_PIN 19
+#define TX_PIN 18
+#define BAUD_RATE 256000
 
-#define RADAR_RX 19
-#define RADAR_TX 18
+uint8_t RX_BUF[64] = {0};
+uint8_t RX_count = 0;
+uint8_t RX_temp = 0;
 
-// ============================================================
-//  FILTER & LOCK PARAMETERS
-// ============================================================
-#define MAX_TRACKED      3        // Max bijgehouden personen
-#define LOCK_TIMEOUT_MS  10000   // Hoe lang een persoon bijgehouden wordt zonder nieuw signaal (ms)
-#define SMOOTHING        0.25f   // Low-pass factor: 0.0 = nooit updaten, 1.0 = geen filter
-                                  // 0.25 = 25% nieuw signaal, 75% vorige waarde → soepele beweging
-#define ANGLE_MAX        80.0f   // Maximale hoek in graden (±80°)
-#define MATCH_RADIUS_MM  400     // Afstand (mm) waarbinnen een nieuwe meting als "dezelfde persoon" geldt
-#define PUBLISH_INTERVAL 80      // MQTT publish interval in ms
-
-// ============================================================
-//  DATASTRUCTUUR PER BIJGEHOUDEN PERSOON
-// ============================================================
-struct TrackedPerson {
-  bool    active;          // Is deze slot in gebruik?
-  float   x;               // Gefilterde X positie (mm)
-  float   y;               // Gefilterde Y positie (mm)
-  float   angle;           // Berekende hoek (graden)
-  float   distance;        // Berekende afstand (mm)
-  unsigned long lastSeen;  // Timestamp laatste detectie (ms)
-  uint8_t missedFrames;    // Aantal frames niet gezien
+uint8_t Single_Target_Detection_CMD[12] = {
+    0xFD, 0xFC, 0xFB, 0xFA,
+    0x02, 0x00, 0x80, 0x00,
+    0x04, 0x03, 0x02, 0x01
 };
 
-TrackedPerson tracked[MAX_TRACKED];
-
-// ============================================================
-//  OBJECTEN
-// ============================================================
-WiFiClient   espClient;
-PubSubClient client(espClient);
-RD03D        radar(RADAR_RX, RADAR_TX);
-
-// ============================================================
-//  WIFI & MQTT
-// ============================================================
-void setup_wifi() {
-  Serial.print("Verbinden met ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nWiFi verbonden! IP: " + WiFi.localIP().toString());
+bool isValidFrame() {
+    if (RX_count != 30)      return false;
+    if (RX_BUF[0]  != 0xAA) return false;
+    if (RX_BUF[1]  != 0xFF) return false;
+    if (RX_BUF[2]  != 0x03) return false;
+    if (RX_BUF[3]  != 0x00) return false;
+    if (RX_BUF[28] != 0x55) return false;
+    if (RX_BUF[29] != 0xCC) return false;
+    return true;
 }
 
-void reconnect() {
-  while (!client.connected()) {
-    Serial.print("Verbinden met MQTT... ");
-    if (client.connect("ESP32_Radar")) {
-      Serial.println("Verbonden!");
-    } else {
-      Serial.print("Mislukt, rc=");
-      Serial.print(client.state());
-      Serial.println(" – opnieuw over 2s");
-      delay(2000);
+void processRadarData() {
+    if (!isValidFrame()) {
+        memset(RX_BUF, 0x00, sizeof(RX_BUF));
+        RX_count = 0;
+        return;
     }
-  }
-}
 
-// ============================================================
-//  HULPFUNCTIES
-// ============================================================
+    // Decoding volgens het artikel
+    uint16_t x_raw = RX_BUF[4] + RX_BUF[5] * 256;
+    uint16_t y_raw = RX_BUF[6] + RX_BUF[7] * 256;
+    uint16_t spd_raw = RX_BUF[8] + RX_BUF[9] * 256;
+    uint16_t res_raw = RX_BUF[10] + RX_BUF[11] * 256;
 
-// Clamp hoek naar ±ANGLE_MAX graden
-float clampAngle(float angle) {
-  if (angle >  ANGLE_MAX) return  ANGLE_MAX;
-  if (angle < -ANGLE_MAX) return -ANGLE_MAX;
-  return angle;
-}
+    int16_t x_mm  = (int16_t)x_raw;          // ← was: 0 - (int16_t)x_raw
+    int16_t y_mm  = (int16_t)(y_raw - 32768);
+    int16_t speed = 0 - (int16_t)spd_raw;
 
-// Afstand tussen twee punten (mm)
-float pointDistance(float x1, float y1, float x2, float y2) {
-  return sqrt(sq(x1 - x2) + sq(y1 - y2));
-}
+    float distance_cm = sqrt(pow(x_mm, 2) + pow(y_mm, 2)) / 10.0;
+    float angle_deg   = atan2(x_mm, y_mm) * 180.0 / PI;
 
-// Zoek de dichtstbijzijnde actieve tracked persoon voor punt (x, y)
-// Geeft -1 terug als geen match binnen MATCH_RADIUS_MM
-int findClosestPerson(float x, float y) {
-  int   bestIdx  = -1;
-  float bestDist = MATCH_RADIUS_MM;
-
-  for (int i = 0; i < MAX_TRACKED; i++) {
-    if (!tracked[i].active) continue;
-    float d = pointDistance(tracked[i].x, tracked[i].y, x, y);
-    if (d < bestDist) {
-      bestDist = d;
-      bestIdx  = i;
+    // Alleen printen als Y positief is (target voor de sensor)
+    if (y_mm <= 0) {
+        memset(RX_BUF, 0x00, sizeof(RX_BUF));
+        RX_count = 0;
+        return;
     }
-  }
-  return bestIdx;
+
+    Serial.print("Afstand: ");
+    Serial.print(distance_cm, 1);
+    Serial.print(" cm  |  Hoek: ");
+    Serial.print(angle_deg, 1);
+    Serial.print(" deg  |  X: ");
+    Serial.print(x_mm / 10.0, 1);
+    Serial.print(" cm  |  Y: ");
+    Serial.print(y_mm / 10.0, 1);
+    Serial.print(" cm  |  Snelheid: ");
+    Serial.print(speed);
+    Serial.println(" cm/s");
+
+    memset(RX_BUF, 0x00, sizeof(RX_BUF));
+    RX_count = 0;
 }
 
-// Zoek een vrije slot
-int findFreeSlot() {
-  for (int i = 0; i < MAX_TRACKED; i++) {
-    if (!tracked[i].active) return i;
-  }
-  return -1;
-}
-
-// Verwijder personen die te lang niet gezien zijn
-void expireOldPersons() {
-  unsigned long now = millis();
-  for (int i = 0; i < MAX_TRACKED; i++) {
-    if (tracked[i].active && (now - tracked[i].lastSeen > LOCK_TIMEOUT_MS)) {
-      Serial.printf("Persoon %d verlopen (niet gezien voor %lu ms)\n", i + 1, LOCK_TIMEOUT_MS);
-      tracked[i].active = false;
-    }
-  }
-}
-
-// Update of maak een nieuwe tracked persoon aan met gefilterde waarden
-void updateTracking(float rawX, float rawY) {
-
-  // Bereken hoek en filter meteen
-  float rawAngle    = atan2((float)rawY, (float)rawX) * 180.0f / PI;
-  float rawDistance = sqrt(sq(rawX) + sq(rawY));
-
-  // Hoek buiten bereik? Negeer meting
-  if (rawAngle > ANGLE_MAX || rawAngle < -ANGLE_MAX) return;
-
-  int idx = findClosestPerson(rawX, rawY);
-
-  if (idx >= 0) {
-    // Bestaande persoon: low-pass filter toepassen
-    tracked[idx].x        = tracked[idx].x * (1.0f - SMOOTHING) + rawX * SMOOTHING;
-    tracked[idx].y        = tracked[idx].y * (1.0f - SMOOTHING) + rawY * SMOOTHING;
-    tracked[idx].angle    = clampAngle(atan2(tracked[idx].y, tracked[idx].x) * 180.0f / PI);
-    tracked[idx].distance = sqrt(sq(tracked[idx].x) + sq(tracked[idx].y));
-    tracked[idx].lastSeen = millis());
-
-  } else {
-    // Nieuwe persoon
-    idx = findFreeSlot();
-    if (idx < 0) {
-      Serial.println("Geen vrije slot! Max personen bereikt.");
-      return;
-    }
-    tracked[idx].active   = true;
-    tracked[idx].x        = rawX;
-    tracked[idx].y        = rawY;
-    tracked[idx].angle    = clampAngle(rawAngle);
-    tracked[idx].distance = rawDistance;
-    tracked[idx].lastSeen = millis();
-    Serial.printf("Nieuwe persoon gedetecteerd in slot %d\n", idx + 1);
-  }
-}
-
-// ============================================================
-//  SETUP
-// ============================================================
 void setup() {
-  Serial.begin(115200);
+    Serial.begin(115200);
+    Serial1.begin(BAUD_RATE, SERIAL_8N1, RX_PIN, TX_PIN);
+    Serial1.setRxBufferSize(64);
 
-  // Alle slots leegmaken
-  for (int i = 0; i < MAX_TRACKED; i++) {
-    tracked[i].active = false;
-  }
+    Serial1.write(Single_Target_Detection_CMD, sizeof(Single_Target_Detection_CMD));
+    delay(200);
+    Serial.println("Radar gestart.");
 
-  setup_wifi();
-  client.setServer(mqtt_server, 1883);
-
-  bool ok = radar.initialize(RD03D::MULTI_TARGET);
-  Serial.println(ok ? "Radar gestart (multi-target)." : "Radar init MISLUKT!");
+    RX_count = 0;
+    Serial1.flush();
 }
 
-// ============================================================
-//  LOOP
-// ============================================================
 void loop() {
-  if (!client.connected()) reconnect();
-  client.loop();
+    while (Serial1.available()) {
+        RX_temp = Serial1.read();
+        RX_BUF[RX_count++] = RX_temp;
 
-<<<<<<< HEAD
-  // Radar frame ophalen
-  radar.tasks();
+        if (RX_count >= sizeof(RX_BUF)) {
+            RX_count = sizeof(RX_BUF) - 1;
+        }
 
-  // Verwijder verlopen personen
-  expireOldPersons();
-
-  // Verwerk nieuwe radardata
-  uint8_t count = radar.getTargetCount();
-  for (int i = 0; i < MAX_TRACKED; i++) {
-    TargetData* tgt = radar.getTarget(i);
-    if (tgt != nullptr && tgt->isValid()) {
-      // Gebruik de ruwe X en Y uit de library (in mm)
-      updateTracking((float)tgt->x, (float)tgt->y);
-=======
-  if (radar.update()) {
-    RadarTarget tgt = radar.getTarget();
-    if (tgt.detected) {
-      // Converteer hoek van graden naar radialen (nodig voor C++ cos/sin functies)
-      float angleRad = tgt.angle * (PI / 180.0);
-      
-      // Bereken X en Y
-      float x = tgt.x;
-      float y = tgt.y;
-      
-      // Z-as is afhankelijk van je radar. Standaard 2D radars hebben dit niet.
-      float z = 0.0; 
-
-      // Maak de string voor de Arduino: "X,Y,Z,angle,distance"
-      String payload1 = String(x, 2) + "," + String(y, 2);
-      String payload2 = String(tgt.angle) + "," + String(tgt.distance);
-      
-      client.publish("vj/radar_servo", payload1.c_str());
-      Serial.println("MQTT1: " + payload1);
-      client.publish("vj/radar", payload2.c_str());
-      Serial.println("MQTT2: " + payload2);
-      
-    } else {
-      // Niemand gedetecteerd
-      client.publish("vj/radar_servo", "0,0"); 
-      client.publish("vj/radar", "0,0"); 
->>>>>>> 48900817d9c9b56eed3615f07ab75e09382294da
+        if ((RX_count > 1) &&
+            (RX_BUF[RX_count - 1] == 0xCC) &&
+            (RX_BUF[RX_count - 2] == 0x55)) {
+            processRadarData();
+        }
     }
-  }
-
-  // MQTT publishen op interval
-  static unsigned long lastPublish = 0;
-  if (millis() - lastPublish < PUBLISH_INTERVAL) return;
-  lastPublish = millis();
-
-  bool anyActive = false;
-
-  for (int i = 0; i < MAX_TRACKED; i++) {
-    String baseTopic = "vj/radar/persoon" + String(i + 1);
-
-    if (tracked[i].active) {
-      anyActive = true;
-
-      float angle    = tracked[i].angle;
-      float distance = tracked[i].distance;
-      float x        = tracked[i].x;
-      float y        = tracked[i].y;
-
-      // Payload voor spotlight/servo: "X,Y,Z,angle,distance"
-      String payloadServo = String(x, 1) + "," + String(y, 1) + ",0," +
-                            String(angle, 1) + "," + String(distance, 1);
-
-      // Simpele payload: "angle,distance"
-      String payloadSimple = String(angle, 1) + "," + String(distance, 1);
-
-      client.publish((baseTopic + "_servo").c_str(), payloadServo.c_str());
-      client.publish(baseTopic.c_str(), payloadSimple.c_str());
-
-      Serial.printf("Persoon %d: hoek=%.1f°  afstand=%.0fmm  X=%.0f Y=%.0f\n",
-                    i + 1, angle, distance, x, y);
-    } else {
-      // Stuur 0 als persoon niet actief
-      client.publish(baseTopic.c_str(), "0,0");
-      client.publish((baseTopic + "_servo").c_str(), "0,0,0,0,0");
-    }
-  }
-
-  if (!anyActive) {
-    Serial.println("Niemand gedetecteerd.");
-  }
 }

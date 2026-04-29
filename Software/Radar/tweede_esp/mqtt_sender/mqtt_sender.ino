@@ -37,7 +37,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
   String topicStr = String(topic);
 
-  // --- HIER GEBEURT HET FILTEREN ---
+  
   
   if (topicStr.endsWith("persoon1_servo")) {
     Serial.print("Persoon 1 gedetecteerd: ");
