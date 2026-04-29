@@ -1,5 +1,6 @@
 #include <Arduino.h>
 
+<<<<<<< HEAD
 #define RX_PIN 19
 #define TX_PIN 18
 #define BAUD_RATE 256000
@@ -23,6 +24,29 @@ bool isValidFrame() {
     if (RX_BUF[28] != 0x55) return false;
     if (RX_BUF[29] != 0xCC) return false;
     return true;
+=======
+// --- INSTELLINGEN ---
+const char* ssid = "devbit";
+const char* password = "$2a$12$sAutUZSpJ39a3N3K/xF8eerg4KuSuQvitPb1BbLg/8U60n5rJxgua";
+const char* mqtt_server = "10.20.10.18"; // IP van je PC (of Pi) waar de broker draait
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+RD03D        radar(RADAR_RX, RADAR_TX);
+
+// ============================================================
+//  WIFI & MQTT
+// ============================================================
+void setup_wifi() {
+  Serial.print("Verbinden met ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi verbonden! IP: " + WiFi.localIP().toString());
+>>>>>>> 2b279d1856dbaa73ef890ba0d104019291083dae
 }
 
 void processRadarData() {

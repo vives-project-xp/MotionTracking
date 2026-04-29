@@ -7,7 +7,6 @@ import numpy as np
 import cv2
 import hailo
 
-# --- andere files dat later erin komen: ---
 from hailo_apps.hailo_app_python.core.common.buffer_utils import get_caps_from_pad, get_numpy_from_buffer
 from hailo_apps.hailo_app_python.core.gstreamer.gstreamer_app import app_callback_class
 from hailo_apps.hailo_app_python.apps.pose_estimation.pose_estimation_pipeline import GStreamerPoseEstimationApp
@@ -51,13 +50,24 @@ def app_callback(pad, info, user_data):
 
     for d in detections:
         if d.get_label() == "person":
+            bbox = d.get_bbox()
+            xmin = bbox.xmin() * width
+            ymin = bbox.ymin() * height
+            xmax = bbox.xmax() * width
+            ymax = bbox.ymax() * height
             landmarks = d.get_objects_typed(hailo.HAILO_LANDMARKS)
             if len(landmarks) > 0:
                 p = landmarks[0].get_points()
+                nose_x = p[0].x() * (xmax - xmin) + xmin
+                nose_y = p[0].y() * (ymax - ymin) + ymin
+                lh_x = p[9].x() * (xmax - xmin) + xmin
+                lh_y = p[9].y() * (ymax - ymin) + ymin
+                rh_x = p[10].x() * (xmax - xmin) + xmin
+                rh_y = p[10].y() * (ymax - ymin) + ymin
                 people.append({
-                    "nose": [float(p[0].x()), float(p[0].y())],
-                    "left_hand": [float(p[9].x()), float(p[9].y())],
-                    "right_hand": [float(p[10].x()), float(p[10].y())]
+                    "nose": [nose_x / width, nose_y / height],
+                    "left_hand": [lh_x / width, lh_y / height],
+                    "right_hand": [rh_x / width, rh_y / height]
                 })
 
     payload = {"people": people, "markers": marker_data}
@@ -66,6 +76,7 @@ def app_callback(pad, info, user_data):
 
 if __name__ == "__main__":
     app = GStreamerPoseEstimationApp(app_callback, app_callback_class())
-    app.video_sink = "fakesink"
-    app.use_frame = True
+    app.video_source = "/dev/video0"
+    app.video_sink = "fakesink" 
+    app.use_frame = True 
     app.run()
