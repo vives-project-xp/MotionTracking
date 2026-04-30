@@ -1,6 +1,8 @@
 #include <Arduino.h>
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include "secrets.h"
 
-<<<<<<< HEAD
 #define RX_PIN 19
 #define TX_PIN 18
 #define BAUD_RATE 256000
@@ -8,6 +10,62 @@
 uint8_t RX_BUF[64] = {0};
 uint8_t RX_count = 0;
 uint8_t RX_temp = 0;
+
+
+// --- 1. WiFi & MQTT Instellingen ---
+
+const char* ssid = SECRET_SSID;          
+const char* password = SECRET_PASS;      
+const char* mqtt_server = SECRET_MQTT_SERVER; 
+
+float filtAngle = 0;
+float filtDistance = 0;
+
+unsigned long lastUpdate = 0;
+const int UPDATE_INTERVAL = 100; // ms → 5 updates/sec
+
+#define SMOOTHING 0.05f
+#define MAX_ANGLE_JUMP 15.0f
+#define MAX_DIST_JUMP 100.0f
+#define DEADZONE_ANGLE 2.0f
+#define DEADZONE_DIST 20.0f
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void setup_wifi() {
+    delay(10);
+    Serial.println();
+    Serial.print("Verbinden met ");
+    Serial.println(ssid);
+
+    WiFi.begin(ssid, password);
+
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+
+    Serial.println("");
+    Serial.println("WiFi verbonden.");
+    Serial.print("IP adres: ");
+    Serial.println(WiFi.localIP());
+}
+
+void reconnect() {
+    while (!client.connected()) {
+        Serial.print("Verbinden met MQTT broker...");
+        if (client.connect("ESP32C3_Radar")) {
+            Serial.println("verbonden!");
+            client.subscribe("vj/radar");
+        } else {
+            Serial.print("mislukt, rc=");
+            Serial.print(client.state());
+            Serial.println(" probeer opnieuw over 5 seconden");
+            delay(500);
+        }
+    }
+}
 
 uint8_t Single_Target_Detection_CMD[12] = {
     0xFD, 0xFC, 0xFB, 0xFA,
@@ -24,73 +82,93 @@ bool isValidFrame() {
     if (RX_BUF[28] != 0x55) return false;
     if (RX_BUF[29] != 0xCC) return false;
     return true;
-=======
-// --- INSTELLINGEN ---
-const char* ssid = "devbit";
-const char* password = "$2a$12$sAutUZSpJ39a3N3K/xF8eerg4KuSuQvitPb1BbLg/8U60n5rJxgua";
-const char* mqtt_server = "10.20.10.18"; // IP van je PC (of Pi) waar de broker draait
-
-WiFiClient espClient;
-PubSubClient client(espClient);
-RD03D        radar(RADAR_RX, RADAR_TX);
-
-// ============================================================
-//  WIFI & MQTT
-// ============================================================
-void setup_wifi() {
-  Serial.print("Verbinden met ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nWiFi verbonden! IP: " + WiFi.localIP().toString());
->>>>>>> 2b279d1856dbaa73ef890ba0d104019291083dae
 }
 
 void processRadarData() {
+    // Check 1: komt de functie überhaupt binnen?
+    Serial.println("processRadarData aangeroepen");
+
     if (!isValidFrame()) {
+        Serial.println("Frame ongeldig!");
         memset(RX_BUF, 0x00, sizeof(RX_BUF));
         RX_count = 0;
         return;
     }
 
-    // Decoding volgens het artikel
-    uint16_t x_raw = RX_BUF[4] + RX_BUF[5] * 256;
-    uint16_t y_raw = RX_BUF[6] + RX_BUF[7] * 256;
-    uint16_t spd_raw = RX_BUF[8] + RX_BUF[9] * 256;
-    uint16_t res_raw = RX_BUF[10] + RX_BUF[11] * 256;
+    uint16_t x_raw   = RX_BUF[4]  + RX_BUF[5]  * 256;
+    uint16_t y_raw   = RX_BUF[6]  + RX_BUF[7]  * 256;
+    uint16_t spd_raw = RX_BUF[8]  + RX_BUF[9]  * 256;
 
-    int16_t x_mm  = (int16_t)x_raw;          // ← was: 0 - (int16_t)x_raw
+    int16_t x_mm;
+    if (x_raw < 32768) {
+        x_mm = (int16_t)x_raw;                          // rechts → positief
+    } else {
+        x_mm = (int16_t)(-(int32_t)(x_raw - 32768));    // links → negatief
+    }
     int16_t y_mm  = (int16_t)(y_raw - 32768);
     int16_t speed = 0 - (int16_t)spd_raw;
+
+    // Check 2: wat zijn de ruwe waarden?
+    Serial.print("x_raw="); Serial.print(x_raw);
+    Serial.print(" y_raw="); Serial.print(y_raw);
+    Serial.print(" x_mm="); Serial.print(x_mm);
+    Serial.print(" y_mm="); Serial.println(y_mm);
+
+    if (y_mm <= 0) {
+        Serial.println("y_mm <= 0, frame geskipt");
+        memset(RX_BUF, 0x00, sizeof(RX_BUF));
+        RX_count = 0;
+        return;
+    }
 
     float distance_cm = sqrt(pow(x_mm, 2) + pow(y_mm, 2)) / 10.0;
     float angle_deg   = atan2(x_mm, y_mm) * 180.0 / PI;
 
-    // Alleen printen als Y positief is (target voor de sensor)
-    if (y_mm <= 0) {
-        memset(RX_BUF, 0x00, sizeof(RX_BUF));
-        RX_count = 0;
+    // ================= FILTERING =================
+
+        // eerste meting
+    if (filtDistance == 0) {
+        filtDistance = distance_cm;
+        filtAngle = angle_deg;
+    }
+
+    // ❌ grote jumps negeren
+    if (abs(angle_deg - filtAngle) > MAX_ANGLE_JUMP) return;
+    if (abs(distance_cm - filtDistance) > MAX_DIST_JUMP) return;
+
+    // smoothing (super stabiel)
+    filtAngle += (angle_deg - filtAngle) * SMOOTHING;
+    filtDistance += (distance_cm - filtDistance) * SMOOTHING;
+
+    // deadzone (anti jitter)
+    if (abs(filtAngle - angle_deg) < DEADZONE_ANGLE &&
+        abs(filtDistance - distance_cm) < DEADZONE_DIST) {
         return;
     }
+
+
 
     Serial.print("Afstand: ");
     Serial.print(distance_cm, 1);
     Serial.print(" cm  |  Hoek: ");
     Serial.print(angle_deg, 1);
-    Serial.print(" deg  |  X: ");
-    Serial.print(x_mm / 10.0, 1);
-    Serial.print(" cm  |  Y: ");
-    Serial.print(y_mm / 10.0, 1);
-    Serial.print(" cm  |  Snelheid: ");
+    Serial.print(" deg  |  Snelheid: ");
     Serial.print(speed);
     Serial.println(" cm/s");
+    Serial.print("x_raw="); Serial.print(x_raw);
+    Serial.print(" y_raw="); Serial.print(y_raw);
+    Serial.print(" x_mm="); Serial.print(x_mm);
+    Serial.print(" y_mm="); Serial.print(y_mm);
+    Serial.print(" hoek="); Serial.println(angle_deg);
+
+    String payload1 = String(x_mm) + "," + String(y_mm) + "," + String(distance_cm) + "," + String(angle_deg);
+    client.publish("vj/radar", payload1.c_str());
+    Serial.println("MQTT verstuurd: " + payload1);
 
     memset(RX_BUF, 0x00, sizeof(RX_BUF));
     RX_count = 0;
 }
+// Zet dit even in en kijk wat de Serial Monitor zegt dan weten we exact waar het stopt!
 
 void setup() {
     Serial.begin(115200);
@@ -98,14 +176,22 @@ void setup() {
     Serial1.setRxBufferSize(64);
 
     Serial1.write(Single_Target_Detection_CMD, sizeof(Single_Target_Detection_CMD));
-    delay(200);
+    delay(1);
     Serial.println("Radar gestart.");
 
     RX_count = 0;
     Serial1.flush();
+
+    setup_wifi();
+    client.setServer(mqtt_server, 1883);
 }
 
 void loop() {
+    if (!client.connected()) {
+        reconnect();
+    }
+    client.loop();
+
     while (Serial1.available()) {
         RX_temp = Serial1.read();
         RX_BUF[RX_count++] = RX_temp;
