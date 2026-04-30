@@ -43,13 +43,13 @@ Alle onderzoeken voor het project kan men terug vinden in de [Research](Research
 
 3. Sluit de **camera** aan op de Raspberry Pi 5 en de projector op de Radxa Rock
 
-4. Zorg ervoor dat de Projector en camera steeds goed gepositioneerd blijven (dit kan met een statief + plaat).
+4. Zorg ervoor dat de Projector en camera steeds **goed gepositioneerd** blijven (dit kan met een statief + plaat).
 
 5. Start het script **main.py** op de Raspberry Pi en ook het script **main.py** starten op de Rock.
 
-6. Laat de camera de fudicials tracken, als de fudicials dan verdwijnen zou de tracking moeten opgestart zijn.
+6. Laat de camera de **fudicials** tracken, als de fudicials dan verdwijnen zou de **tracking** moeten **opgestart** zijn.
 
-7. Surf naar het IP-adres van uw VM op poort 80:
+7. Surf naar het **IP-adres** van uw **VM** op poort 80:
 
 ```bash
 [IP-Adres]:80
