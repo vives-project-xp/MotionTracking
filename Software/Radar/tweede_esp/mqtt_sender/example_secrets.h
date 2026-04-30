@@ -1,0 +1,9 @@
+// secrets.h
+#ifndef SECRETS_H
+#define SECRETS_H
+
+#define SECRET_SSID "JOUW_WIFI_NAAM"
+#define SECRET_PASS "JOUW_WIFI_PASWOORD"
+#define SECRET_MQTT_SERVER "JOUW_IP_MQTT_SERVER"
+
+#endif

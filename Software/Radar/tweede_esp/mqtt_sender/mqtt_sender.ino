@@ -1,32 +1,40 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include "secrets.h"
+// --- 1. WiFi & MQTT Instellingen ---
 
-// --- JOUW INSTELLINGEN ---
-const char* ssid = "devbit";
-const char* password = "$2a$12$sAutUZSpJ39a3N3K/xF8eerg4KuSuQvitPb1BbLg/8U60n5rJxgua";
-const char* mqtt_server = "10.20.10.18"; // IP van je MQTT broker
-
-// --- PINNEN VOOR ARDUINO COMMUNICATIE ---
-#define ARDUINO_RX_PIN 5 // Ontvangen van Arduino (optioneel)
-#define ARDUINO_TX_PIN 4 // Verzenden naar Arduino (Verbind met Pin 10 op Uno)
+const char* ssid = SECRET_SSID;          
+const char* password = SECRET_PASS;      
+const char* mqtt_server = SECRET_MQTT_SERVER; 
 
 WiFiClient espClient;
 PubSubClient client(espClient);
+
+// --- 2. UART Pinnen voor de ESP32-C3 ---
+// We gebruiken Hardware Serial1. 
+// TX gaat naar pin 4 (jouw wens), RX stellen we in op pin 5 (niet direct nodig, maar vereist voor setup)
+#define RX_PIN 5
+#define TX_PIN 21
 
 void setup_wifi() {
   delay(10);
   Serial.println();
   Serial.print("Verbinden met ");
   Serial.println(ssid);
+
   WiFi.begin(ssid, password);
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\nWiFi verbonden!");
+
+  Serial.println("");
+  Serial.println("WiFi verbonden.");
+  Serial.print("IP adres: ");
+  Serial.println(WiFi.localIP());
 }
 
-// Deze functie wordt aangeroepen zodra er een nieuw MQTT bericht is op een van de topics
 void callback(char* topic, byte* payload, unsigned int length) {
   String message = "";
   for (int i = 0; i < length; i++) {
@@ -39,56 +47,41 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("]: ");
   Serial.println(message);
 
-<<<<<<< HEAD
-  
-  
-  if (topicStr.endsWith("persoon1_servo")) {
-    Serial.print("Persoon 1 gedetecteerd: ");
-    Serial.println(message);
-    Serial1.print("P1:"); 
-    Serial1.println(message); // Stuur naar Uno
-=======
   // We sturen de data door naar de Arduino Uno.
   // We checken van welk topic het komt om een label mee te sturen
   if (String(topic) == "vj/radar") {
     // Stel dat dit bericht "X:100,Y:200" bevat
     Serial1.println(message); 
->>>>>>> 2b279d1856dbaa73ef890ba0d104019291083dae
   } 
-  else if (String(topic) == "vj/radar_servo") {
-    // Stel dat dit bericht "A:45" bevat
-    // We zorgen dat er altijd een 'A:' label bij staat voor de Uno parser
-    if (message.indexOf("A:") == -1) {
-      Serial1.print("A:");
-    }
-    Serial1.println(message);
-  }
 }
 
 void reconnect() {
+  // Blijf proberen tot we verbonden zijn
   while (!client.connected()) {
-    Serial.print("Verbinden met MQTT...");
-    if (client.connect("ESP32_Radar_Ontvanger")) {
-      Serial.println("Verbonden");
+    Serial.print("Verbinden met MQTT broker...");
+    // Geef de client een unieke naam, bijv "ESP32C3_Radar"
+    if (client.connect("ESP32C3_Radar1")) {
+      Serial.println("verbonden!");
       
-      // ABONNEER OP BEIDE TOPICS
-      client.subscribe("vj/radar");       // Voor X en Y data
-      client.subscribe("vj/radar_servo"); // Voor de hoek (Angle) data
+      // Abonneer op het topic uit de screenshot
+      client.subscribe("vj/radar");
       
-      Serial.println("Geabonneerd op vj/radar en vj/radar_servo");
     } else {
-      Serial.print("Mislukt, rc=");
+      Serial.print("mislukt, rc=");
       Serial.print(client.state());
-      delay(2000);
+      Serial.println(" probeer opnieuw over 5 seconden");
+      delay(5000);
     }
   }
 }
 
 void setup() {
-  Serial.begin(9600);
-  
-  // Start Serial1 voor de Uno (9600 baud voor stabiliteit)
-  Serial1.begin(9600, SERIAL_8N1, ARDUINO_RX_PIN, ARDUINO_TX_PIN);
+  // Serial0 (USB) instellen voor de Serial Monitor in Arduino IDE
+  Serial.begin(115200);
+
+  // Serial1 instellen voor de communicatie met de Arduino Uno
+  // Baudrate op 9600 is veilig en stabiel voor SoftwareSerial op de Uno
+  Serial1.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);
 
   setup_wifi();
   client.setServer(mqtt_server, 1883);
@@ -96,8 +89,8 @@ void setup() {
 }
 
 void loop() {
-  if (!client.connected()) { 
-    reconnect(); 
+  if (!client.connected()) {
+    reconnect();
   }
   client.loop();
 }
