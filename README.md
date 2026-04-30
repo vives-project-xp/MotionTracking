@@ -32,6 +32,7 @@ Alle onderzoeken voor het project kan men terug vinden in de [Research](Research
 - Raspberry Pi 5 + hailo ai kit
 - USB Camera -> verbonden met raseberry
 - Radxa Rock 5B or other strong device   -> verbonden met projector
+- Server of iets waar je website op kan hosten
   
 
 #### Stappen:
