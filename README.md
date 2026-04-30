@@ -71,6 +71,11 @@ Alle onderzoeken voor het project kan men terug vinden in de [Research](Research
 - Servo Motoren (Nema 17)
 - Spotlight Lamp (Eurolite LED PST-12W 6000K Spot)
 
+#### Stappen
+
+ 1. Lokaliseer de juiste **files** door te Navigeren naar : Software > Radar > Radar_code > Radar_code.ino .
+ 2. Verbind de Esp en de Radar met elkaar
+
 ## Team
 
 | Team | Afstudeerrichting |
