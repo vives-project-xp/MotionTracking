@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include "secrets.h"
+#include <secrets.h>
 
 #define RX_PIN 19
 #define TX_PIN 18
@@ -11,24 +11,9 @@ uint8_t RX_BUF[64] = {0};
 uint8_t RX_count = 0;
 uint8_t RX_temp = 0;
 
-
-// --- 1. WiFi & MQTT Instellingen ---
-
 const char* ssid = SECRET_SSID;          
 const char* password = SECRET_PASS;      
 const char* mqtt_server = SECRET_MQTT_SERVER; 
-
-float filtAngle = 0;
-float filtDistance = 0;
-
-unsigned long lastUpdate = 0;
-const int UPDATE_INTERVAL = 100; // ms → 5 updates/sec
-
-#define SMOOTHING 0.05f
-#define MAX_ANGLE_JUMP 15.0f
-#define MAX_DIST_JUMP 100.0f
-#define DEADZONE_ANGLE 2.0f
-#define DEADZONE_DIST 20.0f
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -62,7 +47,7 @@ void reconnect() {
             Serial.print("mislukt, rc=");
             Serial.print(client.state());
             Serial.println(" probeer opnieuw over 5 seconden");
-            delay(500);
+            delay(5000);
         }
     }
 }
@@ -124,30 +109,6 @@ void processRadarData() {
     float distance_cm = sqrt(pow(x_mm, 2) + pow(y_mm, 2)) / 10.0;
     float angle_deg   = atan2(x_mm, y_mm) * 180.0 / PI;
 
-    // ================= FILTERING =================
-
-        // eerste meting
-    if (filtDistance == 0) {
-        filtDistance = distance_cm;
-        filtAngle = angle_deg;
-    }
-
-    // ❌ grote jumps negeren
-    if (abs(angle_deg - filtAngle) > MAX_ANGLE_JUMP) return;
-    if (abs(distance_cm - filtDistance) > MAX_DIST_JUMP) return;
-
-    // smoothing (super stabiel)
-    filtAngle += (angle_deg - filtAngle) * SMOOTHING;
-    filtDistance += (distance_cm - filtDistance) * SMOOTHING;
-
-    // deadzone (anti jitter)
-    if (abs(filtAngle - angle_deg) < DEADZONE_ANGLE &&
-        abs(filtDistance - distance_cm) < DEADZONE_DIST) {
-        return;
-    }
-
-
-
     Serial.print("Afstand: ");
     Serial.print(distance_cm, 1);
     Serial.print(" cm  |  Hoek: ");
@@ -176,7 +137,7 @@ void setup() {
     Serial1.setRxBufferSize(64);
 
     Serial1.write(Single_Target_Detection_CMD, sizeof(Single_Target_Detection_CMD));
-    delay(1);
+    delay(200);
     Serial.println("Radar gestart.");
 
     RX_count = 0;
