@@ -26,23 +26,20 @@ Alle onderzoeken voor het project kan men terug vinden in de [Research](Research
 
 <img src="./Archief/Images/IntroductieposterPX9.png" height="auto">
 
-### Installatie
+### Installatie Motion Tracking met projector
 #### Benodigdheden:
 - Projector of groot scherm
 - Raspberry Pi 5 + hailo ai kit
 - USB Camera -> verbonden met raseberry
-- Radxa Rock 5B or other strong device   -> verbonden met projector
-- Server of iets waar je website op kan hosten
+- Radxa Rock 5B of sterker apparaat   -> verbonden met projector
+- Virtuele Machine op server of iets waar je website op kan hosten
   
 
 #### Stappen:
 
-1. **Clone** de github-repo op de Raspberry Pi 5 en op uw PC of VM
+1. **Clone** de github-repo op de Raspberry Pi 5, Rock en VM.
 
-2. Voer het volgende **commando** uit op uw PC of VM in de workspace:
-```bash
-Docker compose up -d
-```
+2. Lokaliseer de juiste files per apparaat: [MAPnaam]>[Device]
 
 3. Sluit de **camera** en **projector** aan op de Raspberry Pi 5.
 
