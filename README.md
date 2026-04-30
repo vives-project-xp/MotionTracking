@@ -28,10 +28,11 @@ Alle onderzoeken voor het project kan men terug vinden in de [Research](Research
 
 ### Installatie
 #### Benodigdheden:
-- een vlakke muur
-- Projector
-- Raspberry Pi 5 (+ Halo processor)
-- USB Camera
+- Projector of groot scherm
+- Raspberry Pi 5 + hailo ai kit
+- USB Camera -> verbonden met raseberry
+- Radxa Rock 5B or other strong device   -> verbonden met projector
+  
 
 #### Stappen:
 
