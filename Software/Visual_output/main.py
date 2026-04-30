@@ -144,7 +144,8 @@ def run_visualizer():
         bg_manager.draw(screen)
 
         if current_config["mode"] == "COWBOY":
-            effect_surface.fill((0, 0, 0)) 
+            effect_surface.fill((0, 0, 0))
+
         else:
             fade_overlay.set_alpha(cfg.get("trail", 30))
             effect_surface.blit(fade_overlay, (0, 0))
@@ -169,9 +170,10 @@ def run_visualizer():
 
                     if current_config["mode"] == "COWBOY":
                         # Gebruik int() bij de aanroep voor extra veiligheid
-                        if label == "nose": 
+                        if label == "nose":
                             draw_cowboy_hat(effect_surface, int(nx), int(ny))
-                        if label == "right_hand": 
+                        if label == "right_hand":
+
                             draw_pitchfork(effect_surface, int(nx), int(ny))
                     else:
                         if label == "nose":

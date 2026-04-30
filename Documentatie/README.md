@@ -1,6 +1,14 @@
 # Documentatie
 > Hier vindt men alle documentatie
 
+# Pan and Tilt Joint
+Voor dit project hebben wij een pan and tilt joint gebruikt dat alle richtingen in kan draaien. Hiervoor bestaat all een mooi bestaand project: https://www.thingiverse.com/thing:4316563
+We kunnen hier vinden hoedat wij het samen stellen: https://www.youtube.com/watch?v=uJO7mv4-0PY
+Voor het grote rollement hebben wij dit ook uitgeprint en met gesmeerd zodat het vlot draait.
+Beide Stepper Motors namelijk de NEMA-17 Zijn verbonden met QShield v5d en het shield is verbonden aan de Arduino. Het QShield heeft min 12V nodig We voeden het met een adapter van 12V en 2A, Dit is genoeg voor onze stepper motors. Daarna hebben wij deze lamp gemonteerd op het statief: https://www.bax-shop.be/nl/pinspot/eurolite-led-pst-12w-6000k-spot-smalle-beam-pinspot, Dit moet niet deze lamp zijn, maar is onze prefernce.
+
+# Code Pan and Tilt Joint
+De code werd geschreven in C in Arduino IDE voor de Arduino Uno dat wij in dit project gebruiken. Je kunt de Code hier vinden: https://github.com/vives-project-xp/MotionTracking/tree/main/Software/Arduino Wat deze code doet is homen van de Y-axis zodat wij niet over de fysieke limiten gaan en het inlezen van de waardes van de mqtt dat vanuit de radar komt.
 
 
 # Ai-Thinker RD-03D Radar Documentatie

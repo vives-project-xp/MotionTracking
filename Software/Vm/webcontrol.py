@@ -35,7 +35,7 @@ state = {
     "bg_type": "color",
     "bg_val": "0,0,0",
     "tracker_bron": "camera",
-    "target_person": "persoon1" # <--- Standaard doelwit voor radar
+    "target_person": "persoon1" 
 }
 
 HTML = """
@@ -74,10 +74,6 @@ HTML = """
         input[type=text] { width: calc(100% - 20px); padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #555; background: #222; color: white; }
         .btn-upload { background: #2ecc71; color: black; width: 100%; }
 
-        .toggle-group { text-align: left; margin: 15px 0; }
-        .toggle-label { font-size: 1.1em; cursor: pointer; display: block; margin: 10px 0; background: #222; padding: 10px; border-radius: 8px; border-left: 4px solid #2ecc71; }
-        input[type=checkbox] { transform: scale(1.5); margin-right: 15px; accent-color: #2ecc71; }
-
         .slider-container { margin: 20px 0; text-align: left; }
         input[type=range] { width: 100%; height: 8px; border-radius: 5px; background: #333; outline: none; -webkit-appearance: none; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: #fff; border-radius: 50%; cursor: pointer; }
@@ -86,7 +82,6 @@ HTML = """
     </style>
     <script>
         window.onload = function() {
-            // Initialiseer de knoppen op basis van de huidige state
             highlightTracker('{{ state.tracker_bron }}');
             highlightPerson('{{ state.target_person }}');
             
@@ -103,11 +98,10 @@ HTML = """
 
     <div class="card">
         <h3>🎯 Tracking Bron</h3>
-        <button class="btn-tracker" id="btn_camera" onclick="update('tracker_bron', 'camera'); highlightTracker('camera')">📷 Camera (AI)</button>
-        <button class="btn-tracker" id="btn_radar" onclick="update('tracker_bron', 'radar'); highlightTracker('radar')">📡 Radar (ESP32)</button>
+        <button class="btn-tracker" style="width: 100%;" id="btn_camera" onclick="update('tracker_bron', 'camera'); highlightTracker('camera')">📷 Camera (AI)</button>
     </div>
 
-    <div class="card" id="card_radar_target" style="display: none;">
+    <div class="card" id="card_radar_target">
         <h3>👤 Radar Doelwit</h3>
         <button class="btn-person" id="btn_persoon1" onclick="update('target_person', 'persoon1'); highlightPerson('persoon1')">Persoon 1</button>
         <button class="btn-person" id="btn_persoon2" onclick="update('target_person', 'persoon2'); highlightPerson('persoon2')">Persoon 2</button>
@@ -189,15 +183,11 @@ HTML = """
         }
 
         function highlightTracker(bron) {
-            // Pas de borders van de knoppen aan
-            document.getElementById('btn_camera').style.border = (bron === 'camera') ? '2px solid #2ecc71' : '2px solid transparent';
-            document.getElementById('btn_radar').style.border = (bron === 'radar') ? '2px solid #2ecc71' : '2px solid transparent';
-            
-            // Toon of verberg het radar doelwit menu afhankelijk van de bron
-            document.getElementById('card_radar_target').style.display = (bron === 'radar') ? 'block' : 'none';
+            if (document.getElementById('btn_camera')) {
+                document.getElementById('btn_camera').style.border = (bron === 'camera') ? '2px solid #2ecc71' : '2px solid transparent';
+            }
         }
 
-        // NIEUW: Functie om de geselecteerde persoon te highlighten
         function highlightPerson(person) {
             document.getElementById('btn_persoon1').style.border = (person === 'persoon1') ? '2px solid #2ecc71' : '2px solid transparent';
             document.getElementById('btn_persoon2').style.border = (person === 'persoon2') ? '2px solid #2ecc71' : '2px solid transparent';
@@ -216,7 +206,6 @@ HTML = """
             }
         }
 
-        // Functie om bestanden te verwijderen
         function deleteFile(fileName) {
             if (confirm("Weet je zeker dat je '" + fileName + "' permanent wilt verwijderen?")) {
                 let formData = new FormData();
@@ -236,7 +225,6 @@ def home():
     files = []
     if os.path.exists(MEDIA_FOLDER):
         files = [f for f in os.listdir(MEDIA_FOLDER) if allowed_file(f)]
-    # We geven nu ook de 'state' mee aan de template, zodat de knoppen de juiste startwaarde krijgen
     return render_template_string(HTML, media_files=files, state=state)
 
 @app.route('/update')
@@ -247,7 +235,6 @@ def update():
             state[key] = int(val) if val.isdigit() else val
             
     try:
-        # Dit pusht nu ook automatisch "target_person": "persoonX" mee in de JSON!
         publish.single(MQTT_TOPIC_CONFIG, payload=json.dumps(state), hostname=MQTT_BROKER)
     except Exception as e:
         print(f"Fout bij sturen MQTT: {e}")
