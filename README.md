@@ -62,8 +62,14 @@ Alle onderzoeken voor het project kan men terug vinden in de [Research](Research
 
 3. Pas achtergronden en effecten aan op de website om mooie visuals te krijgen.
 
-
-
+### Installatie Motion Tracking met Moving Spot
+#### Benodigdheden:
+- 2X ESP32-C3-DevKitC-02
+- Radar Sensor (mmWave-sensor) (Ai-Thinker Rd-03D 24GHz Radar Sensor Module)
+- Arduino Uno
+- QShield Servo Driver Board
+- Servo Motoren (Nema 17)
+- Spotlight Lamp (Eurolite LED PST-12W 6000K Spot)
 
 ## Team
 
