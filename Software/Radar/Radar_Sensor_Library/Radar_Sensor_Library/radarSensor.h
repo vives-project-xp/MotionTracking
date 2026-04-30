@@ -4,11 +4,11 @@
 #include <Arduino.h>
 
 struct RadarTarget {
-  float angle;     // Graden (-60 tot 60)
-  float distance;  // Afstand in mm
-  float x;
-  float y;
-  bool detected;
+    bool detected;
+    float x;
+    float y;
+    float angle;
+    float distance;
 };
 
 class RadarSensor {

@@ -39,11 +39,21 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("]: ");
   Serial.println(message);
 
+<<<<<<< HEAD
+  
+  
+  if (topicStr.endsWith("persoon1_servo")) {
+    Serial.print("Persoon 1 gedetecteerd: ");
+    Serial.println(message);
+    Serial1.print("P1:"); 
+    Serial1.println(message); // Stuur naar Uno
+=======
   // We sturen de data door naar de Arduino Uno.
   // We checken van welk topic het komt om een label mee te sturen
   if (String(topic) == "vj/radar") {
     // Stel dat dit bericht "X:100,Y:200" bevat
     Serial1.println(message); 
+>>>>>>> 2b279d1856dbaa73ef890ba0d104019291083dae
   } 
   else if (String(topic) == "vj/radar_servo") {
     // Stel dat dit bericht "A:45" bevat
