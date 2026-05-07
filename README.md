@@ -71,10 +71,33 @@ Alle onderzoeken voor het project kan men terug vinden in de [Research](Research
 - Servo Motoren (Nema 17)
 - Spotlight Lamp (Eurolite LED PST-12W 6000K Spot)
 
-#### Stappen
+#### Stappen voor installatie van Radar
 
  1. Lokaliseer de juiste **files** door te Navigeren naar : Software > Radar > Radar_code > Radar_code.ino .
- 2. Verbind de Esp en de Radar met elkaar
+ 2. Verbind de Esp en de Radar met elkaar via een usb-a kabel.
+ 3. Upload de Radar_code.ino naar de esp.
+ 4. Hang de radar op de positie waar de personen wilt tracken.
+ 5. Verbind de radar via deze wijze :
+    | Radar | ESP32          |
+    |-------|----------------|
+    | RX    | TX (Pin 18)    |
+    | TX    | RX (Pin 19)    |
+    | 5V    | 5V             |
+    | GND   | GND            |
+
+ #### Stappen voor MQTT Receiver Esp
+
+ 1. Lokaliseer de juiste **files** door te navigeren naar : Software > Radar > tweed_esp > mqtt_sender > mqtt_sender.ino 
+ 2. Connecteer je esp met je computer en upload de mqtt_sender.ino code naar je esp.
+ 3. Connecteer je esp met de arduino :
+
+    | Pinout ESP | Pinout Arduino |
+    |------------|----------------|
+    | GND        | GND            |
+    | TX (pin 21)| Pin 2          |
+    | RX (pin 5) **optioneel**| Pin 3 **optioneel**|
+
+ 
 
 ## Team
 
