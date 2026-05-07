@@ -117,3 +117,7 @@ Na een geldige meting wordt de data via WiFi gepubliceerd op het MQTT topic `vj/
 | `WiFi.h` | WiFi verbinding | Ingebouwd in ESP32 core |
 | `PubSubClient.h` | MQTT communicatie | Via Arduino Library Manager |
 | `Arduino.h` | Arduino basis | Ingebouwd |
+
+--- 
+### Gebruikte Driver
+[Driver](https://www.silabs.com/documents/public/software/CP210x_Universal_Windows_Driver.zip)
