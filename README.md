@@ -45,7 +45,7 @@ Alle onderzoeken voor het project kan men terug vinden in de [Research](Research
 
 4. Zorg ervoor dat de Projector en camera steeds **goed gepositioneerd** blijven (dit kan met een statief + plaat).
 
-5. Start het script **main.py** op de Raspberry Pi en ook het script **main.py** starten op de Rock.
+5. Start het script **hailo_apps/hailo_app_python/start_tracking** op de Raspberry Pi en ook het script **visual_output/main.py** starten op de Rock.
 
 6. Laat de camera de **fudicials** tracken, als de fudicials dan verdwijnen zou de **tracking** moeten **opgestart** zijn.
 
@@ -56,11 +56,11 @@ Alle onderzoeken voor het project kan men terug vinden in de [Research](Research
 ```
 
 ### Gebruik
-1. Start alles op (zie installatie).
+1. **Start** alles **op** (zie installatie).
 
-2. Ga voor de camera staan/bewegen om effecten te zien op de projector.
+2. Ga **voor** de **camera** staan/bewegen om **effecten** te zien op de projector.
 
-3. Pas achtergronden en effecten aan op de website om mooie visuals te krijgen.
+3. Pas **achtergronden** en **effecten** aan op de website om mooie **visuals** te krijgen.
 
 ### Installatie Motion Tracking met Moving Spot
 #### Benodigdheden:
