@@ -1,11 +1,36 @@
 # Software
 > Hier vindt men alle software
 
-# Ai-Thinker RD-03D Radar Software
+## Bestandsstructuur
 
-## Hoe de software werkt
+```text
+Software/
+└── Archief
+    └── Oude mappen/bestanden
+└── Arduino
+    └── Files voor Arduino
+└── Hailo_tracking
+    └── basic_pipelines
+    └── hailo_apps
+└── Radar/
+    └── Radar_Code/
+        └── Radar_Code.ino
+└── Visual_output
+    └── demo_radar: files om radar te tonen op projector
+    └── Markers: fiducials om projector uit te lezen
+    └── Media: Foto's en video's voor op projector
+    └── files om programma uit te voeren voor op de rock       
+└── Vm
+    └── files voor de website
 
-### 1. Data Ontvangst
+    
+```
+---
+## Ai-Thinker RD-03D Radar Software
+
+### Hoe de software werkt
+
+#### 1. Data Ontvangst
 De sensor stuurt pakketjes van **30 bytes** via UART op **256000 baud**. De software controleert eerst de volledige header én footer om te bevestigen dat het om een geldig datapakket gaat:
 
 | Positie | Waarde | Beschrijving |
@@ -26,7 +51,7 @@ De software valideert elk frame door de header (`0xAA 0xFF 0x03 0x00`) en footer
 
 ---
 
-### 2. Coördinaat Decodering
+#### 2. Coördinaat Decodering
 De ruwe X- en Y-waardes worden samengesteld via little-endian optelling:
 **X-coördinaat (links/rechts):**
 De sensor gebruikt een gedeeld bereik rond 32768 (2¹⁵):
@@ -38,7 +63,7 @@ $$y_{mm} = y_{raw} - 32768$$
 
 ---
 
-### 3. Wiskundige Berekening
+#### 3. Wiskundige Berekening
 De software rekent de X- en Y-coördinaten om naar poolcoördinaten:
 
 **Afstand** via de stelling van Pythagoras:
@@ -51,7 +76,7 @@ Waarbij $0°$ recht vooruit is voor de radar, positieve graden rechts en negatie
 
 ---
 
-### 4. Filters
+#### 4. Filters
 Om ongeldige frames te verwijderen:
 1. **Frame lengte**: Exact 30 bytes.
 2. **Header & footer**: Moeten exact overeenkomen.
@@ -59,13 +84,13 @@ Om ongeldige frames te verwijderen:
 
 ---
 
-### 5. MQTT Verzending
+#### 5. MQTT Verzending
 Na een geldige meting wordt de data via WiFi gepubliceerd op het MQTT topic `vj/radar` als CSV-string:
 
 ---
 
 
-### Gebruik in de Arduino IDE
+#### Gebruik in de Arduino IDE
 
 1. Stel jouw **WiFi credentials** in bovenaan de code.
 2. Stel het correcte **MQTT broker IP-adres** in (`mqtt_server`).
@@ -85,17 +110,7 @@ Na een geldige meting wordt de data via WiFi gepubliceerd op het MQTT topic `vj/
 
 ---
 
-## Bestandsstructuur
-
-```text
-Software/
-└── Radar/
-    └── Radar_Code/
-        └── Radar_Code.ino
-```
----
-
-## Gebruikte Libraries
+### Gebruikte Libraries
 
 | Library | Functie | Installatie |
 |---------|---------|-------------|
