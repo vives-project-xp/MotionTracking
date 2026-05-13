@@ -30,7 +30,7 @@ Alle onderzoeken voor het project kan men terug vinden in de [Research](Research
 #### Benodigdheden:
 - Projector of groot scherm
 - Raspberry Pi 5 + hailo ai kit
-- USB Camera -> verbonden met raseberry
+- USB Camera -> verbonden met raspberry
 - Radxa Rock 5B of sterker apparaat   -> verbonden met projector
 - Virtuele Machine op server of iets waar je website op kan hosten
   
