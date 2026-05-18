@@ -23,7 +23,6 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-
 state = {
     "mode": "MAGIC",
     "size": 5,
@@ -39,104 +38,106 @@ state = {
 
 HTML = """
 <!DOCTYPE html>
-<html>
+<html lang="nl">
 <head>
     <title>Motion Tracking Control</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #0a0a0a; color: white; margin: 0; padding: 20px; }
-        .card { background: #1a1a1a; padding: 20px; border-radius: 15px; margin: 10px auto; max-width: 450px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid #333; }
-        h3 { border-bottom: 1px solid #444; padding-bottom: 10px; margin-top: 0; color: #ccc; }
-
-        button { padding: 12px; margin: 5px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button:active { transform: scale(0.95); }
-        
-        .btn-mode { width: 22%; font-size: 0.8em; }
-
-        .media-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
-        .btn-bg { flex-grow: 1; background: #2980b9; color: white; margin: 0; text-align: left; padding-left: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-        .btn-rename { width: 45px; background: #f39c12; color: black; margin: 0 0 0 5px; padding: 12px 0; flex-shrink: 0; }
-        .btn-delete { width: 45px; background: #e74c3c; color: white; margin: 0 0 0 5px; padding: 12px 0; flex-shrink: 0; }
-
-        .MAGIC { background: #9b59b6; color: white; } 
-        .FIRE { background: #e67e22; color: white; }
-        .CYBER { background: #2ecc71; color: black; } 
-        .GHOST { background: #bdc3c7; color: black; }
-        .COWBOY { background: #5d4037; color: white; } /* Bruin voor cowboy */
-
-        input[type=color] { border: none; width: 100%; height: 40px; border-radius: 8px; cursor: pointer; background: none; }
-        .upload-form { border: 1px dashed #555; padding: 15px; border-radius: 8px; margin-top: 15px; background: #111; }
-        input[type=file] { color: white; margin-bottom: 10px; width: 100%; }
-        input[type=text] { width: calc(100% - 20px); padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #555; background: #222; color: white; }
-        .btn-upload { background: #2ecc71; color: black; width: 100%; }
-
-        .slider-container { margin: 20px 0; text-align: left; }
-        input[type=range] { width: 100%; height: 8px; border-radius: 5px; background: #333; outline: none; -webkit-appearance: none; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: #fff; border-radius: 50%; cursor: pointer; }
-        .slider-label { font-size: 0.9em; color: #aaa; text-transform: uppercase; }
-        .slider-val { float: right; color: #2ecc71; font-weight: bold; }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>🎛️ Tracking Control Panel</h1>
 
-    <div class="card">
-        <h3>1. Achtergrond</h3>
-        <div style="margin-bottom: 20px;">
-            <label style="display:block; text-align:left; color:#aaa; margin-bottom:5px;">Effen kleur:</label>
-            <input type="color" id="colorPicker" value="#000000" onchange="sendColor(this.value)">
+    <h1>Tracking Control Panel</h1>
+
+    <div class="container">
+        
+        <div class="card">
+            <h3>Effect Modus</h3>
+            <div class="mode-grid">
+                <button id="mode-MAGIC" class="btn-mode magic {% if state.mode == 'MAGIC' %}active{% endif %}" onclick="update('mode', 'MAGIC')">MAGIC</button>
+                <button id="mode-FIRE" class="btn-mode fire {% if state.mode == 'FIRE' %}active{% endif %}" onclick="update('mode', 'FIRE')">FIRE</button>
+                <button id="mode-CYBER" class="btn-mode cyber {% if state.mode == 'CYBER' %}active{% endif %}" onclick="update('mode', 'CYBER')">CYBER</button>
+                <button id="mode-GHOST" class="btn-mode ghost {% if state.mode == 'GHOST' %}active{% endif %}" onclick="update('mode', 'GHOST')">GHOST</button>
+                <button id="mode-COWBOY" class="btn-mode cowboy {% if state.mode == 'COWBOY' %}active{% endif %}" onclick="update('mode', 'COWBOY')">COWBOY</button>
+            </div>
         </div>
 
-        <div style="text-align: left; margin-bottom: 15px;">
-            <label style="color:#aaa; margin-bottom:10px; display:block;">Kies Media:</label>
-            {% for file in media_files %}
-                {% set type = 'video' if file.endswith(('.mp4', '.mov', '.avi')) else 'image' %}
-                <div class="media-row">
-                    <button class="btn-bg" onclick="updateBg('{{ type }}', '{{ file }}')" title="{{ file }}">
-                        {% if type == 'video' %}🎬{% else %}🖼️{% endif %} {{ file }}
-                    </button>
-                    <button class="btn-rename" onclick="renameFile('{{ file }}')" title="Hernoemen">✏️</button>
-                    <button class="btn-delete" onclick="deleteFile('{{ file }}')" title="Verwijderen">🗑️</button>
+        <div class="card">
+            <h3>Modifiers</h3>
+            <div class="slider-group">
+                <div class="slider-header">
+                    <span class="slider-label">Y-Offset (Hoogte)</span>
+                    <span class="slider-val" id="val_offset">{{ state.offset }}</span>
                 </div>
-            {% endfor %}
+                <input type="range" min="-300" max="300" value="{{ state.offset }}" oninput="update('offset', this.value)">
+            </div>
+            
+            <div class="slider-group">
+                <div class="slider-header">
+                    <span class="slider-label">Particle Spawn Rate</span>
+                    <span class="slider-val" id="val_spawn">{{ state.spawn }}</span>
+                </div>
+                <input type="range" min="0" max="50" value="{{ state.spawn }}" oninput="update('spawn', this.value)">
+            </div>
         </div>
 
-        <div class="upload-form">
-            <form action="/upload" method="post" enctype="multipart/form-data">
-                <input type="text" name="custom_name" placeholder="Naam (optioneel)">
-                <input type="file" name="file" accept="image/*,video/*" required>
-                <button type="submit" class="btn-upload">Uploaden ⬆️</button>
-            </form>
-        </div>
-    </div>
+        <div class="card">
+            <h3>Achtergrond & Media</h3>
+            
+            <div class="form-group">
+                <label class="form-label">Effen kleur</label>
+                <input type="color" id="colorPicker" value="#000000" onchange="sendColor(this.value)">
+            </div>
 
-    <div class="card">
-        <h3>2. Effect Modus</h3>
-        <button class="btn-mode MAGIC" onclick="update('mode', 'MAGIC')">MAGIC</button>
-        <button class="btn-mode FIRE" onclick="update('mode', 'FIRE')">FIRE</button>
-        <button class="btn-mode CYBER" onclick="update('mode', 'CYBER')">CYBER</button>
-        <button class="btn-mode GHOST" onclick="update('mode', 'GHOST')">GHOST</button>
-        <button class="btn-mode COWBOY" onclick="update('mode', 'COWBOY')">COWBOY</button>
-    </div>
+            <div class="form-group" style="margin-top: 30px;">
+                <label class="form-label">Geselecteerde Media</label>
+                {% for file in media_files %}
+                    {% set type = 'video' if file.endswith(('.mp4', '.mov', '.avi')) else 'image' %}
+                    <div class="media-row">
+                        <button class="btn-bg" onclick="updateBg('{{ type }}', '{{ file }}')" title="{{ file }}">
+                            <span class="media-badge {% if type == 'video' %}badge-video{% else %}badge-image{% endif %}">
+                                {% if type == 'video' %}VID{% else %}IMG{% endif %}
+                            </span>
+                            {{ file }}
+                        </button>
+                        <button class="btn-action" onclick="renameFile('{{ file }}')" title="Hernoemen">Wijzig</button>
+                        <button class="btn-action delete" onclick="deleteFile('{{ file }}')" title="Verwijderen">Wis</button>
+                    </div>
+                {% else %}
+                    <div style="font-size: 0.875rem; color: var(--text-muted); padding: 10px 0;">Geen media gevonden.</div>
+                {% endfor %}
+            </div>
 
-    <div class="card">
-        <h3>3. Modifiers</h3>
-        <div class="slider-container">
-            <span class="slider-label">Y-Offset (Hoogte):</span> <span class="slider-val" id="val_offset">{{ state.offset }}</span>
-            <input type="range" min="-300" max="300" value="{{ state.offset }}" oninput="update('offset', this.value)">
+            <div class="form-group" style="margin-top: 30px;">
+                <label class="form-label">Nieuwe media toevoegen</label>
+                <form action="/upload" method="post" enctype="multipart/form-data">
+                    <input type="text" name="custom_name" placeholder="Optionele bestandsnaam...">
+                    <input type="file" name="file" accept="image/*,video/*" required>
+                    <button type="submit" class="btn-primary">Uploaden</button>
+                </form>
+            </div>
         </div>
-        <div class="slider-container">
-            <span class="slider-label">Particle Spawn Rate:</span> <span class="slider-val" id="val_spawn">{{ state.spawn }}</span>
-            <input type="range" min="0" max="50" value="{{ state.spawn }}" oninput="update('spawn', this.value)">
-        </div>
+
     </div>
 
     <script>
         function update(key, val) {
+            // Update slider waarden
             if(document.getElementById('val_'+key)) {
                 document.getElementById('val_'+key).innerText = val;
             }
+            
+            // Beheer actieve status voor de mode-knoppen
+            if(key === 'mode') {
+                // Verwijder de class 'active' van alle knoppen
+                document.querySelectorAll('.btn-mode').forEach(btn => btn.classList.remove('active'));
+                // Voeg de class 'active' toe aan de specifieke knop waarop net is geklikt
+                let activeBtn = document.getElementById('mode-' + val);
+                if(activeBtn) activeBtn.classList.add('active');
+            }
+            
             fetch(`/update?${key}=${val}`);
         }
 
@@ -150,8 +151,9 @@ HTML = """
         }
 
         function renameFile(oldName) {
-            let newName = prompt("Nieuwe naam:", oldName.split('.')[0]);
-            if (newName) {
+            let baseName = oldName.substring(0, oldName.lastIndexOf('.'));
+            let newName = prompt("Voer een nieuwe naam in:", baseName);
+            if (newName && newName.trim() !== "") {
                 let formData = new FormData();
                 formData.append('old_name', oldName);
                 formData.append('new_name', newName.trim());
@@ -160,7 +162,7 @@ HTML = """
         }
 
         function deleteFile(fileName) {
-            if (confirm("Permanent verwijderen?")) {
+            if (confirm(`Weet je zeker dat je "${fileName}" wilt verwijderen?`)) {
                 let formData = new FormData();
                 formData.append('filename', fileName);
                 fetch('/delete', { method: 'POST', body: formData }).then(() => window.location.reload());
@@ -170,7 +172,6 @@ HTML = """
 </body>
 </html>
 """
-
 @app.route('/')
 def home():
     files = []

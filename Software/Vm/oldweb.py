@@ -6,14 +6,14 @@ import paho.mqtt.publish as publish
 
 app = Flask(__name__)
 
-# Beveiliging: maximale uploadgrootte instellen (bijv. 500 MB)
-app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024 
+# Beveiliging: maximale uploadgrootte instellen (500 MB)
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
 
 MEDIA_FOLDER = 'Media'
 os.makedirs(MEDIA_FOLDER, exist_ok=True)
 
 # --- MQTT Configuratie ---
-MQTT_BROKER = "127.0.0.1"  # Flask draait op dezelfde VM als de broker
+MQTT_BROKER = "127.0.0.1" 
 MQTT_TOPIC_CONFIG = "vj/config"
 
 # --- Alleen deze bestandstypes zijn toegestaan ---
@@ -22,6 +22,7 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'mp4', 'mov', 'avi'}
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 state = {
     "mode": "MAGIC",
@@ -34,15 +35,13 @@ state = {
     "draw_lines": 0,
     "bg_type": "color",
     "bg_val": "0,0,0",
-    "tracker_bron": "camera",
-    "target_person": "persoon1" 
 }
 
 HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Motion Tracking</title>
+    <title>Motion Tracking Control</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #0a0a0a; color: white; margin: 0; padding: 20px; }
@@ -51,22 +50,20 @@ HTML = """
 
         button { padding: 12px; margin: 5px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
         button:active { transform: scale(0.95); }
-
-        .btn-tracker { width: 45%; background: #444; color: white; border: 2px solid #222; }
-        .btn-person { width: 28%; background: #444; color: white; border: 2px solid #222; font-size: 0.9em; }
-        .btn-mode { width: 22%; font-size: 0.8em; }
         
+        .btn-mode { width: 22%; font-size: 0.8em; }
+
         .media-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
         .btn-bg { flex-grow: 1; background: #2980b9; color: white; margin: 0; text-align: left; padding-left: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        
-        /* Knoppen naast de media files */
+
         .btn-rename { width: 45px; background: #f39c12; color: black; margin: 0 0 0 5px; padding: 12px 0; flex-shrink: 0; }
         .btn-delete { width: 45px; background: #e74c3c; color: white; margin: 0 0 0 5px; padding: 12px 0; flex-shrink: 0; }
-        
-        .btn-shape { width: 30%; background: #555; color: white; }
 
-        .MAGIC { background: #9b59b6; color: white; } .FIRE { background: #e67e22; color: white; }
-        .CYBER { background: #2ecc71; color: black; } .GHOST { background: #bdc3c7; color: black; }
+        .MAGIC { background: #9b59b6; color: white; } 
+        .FIRE { background: #e67e22; color: white; }
+        .CYBER { background: #2ecc71; color: black; } 
+        .GHOST { background: #bdc3c7; color: black; }
+        .COWBOY { background: #5d4037; color: white; } /* Bruin voor cowboy */
 
         input[type=color] { border: none; width: 100%; height: 40px; border-radius: 8px; cursor: pointer; background: none; }
         .upload-form { border: 1px dashed #555; padding: 15px; border-radius: 8px; margin-top: 15px; background: #111; }
@@ -80,39 +77,14 @@ HTML = """
         .slider-label { font-size: 0.9em; color: #aaa; text-transform: uppercase; }
         .slider-val { float: right; color: #2ecc71; font-weight: bold; }
     </style>
-    <script>
-        window.onload = function() {
-            highlightTracker('{{ state.tracker_bron }}');
-            highlightPerson('{{ state.target_person }}');
-            
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('error') === 'invalid_file') {
-                alert("Fout: Alleen media bestanden (.jpg, .png, .mp4, etc.) zijn toegestaan!");
-                window.history.replaceState({}, document.title, "/");
-            }
-        };
-    </script>
 </head>
 <body>
     <h1>🎛️ Tracking Control Panel</h1>
 
     <div class="card">
-        <h3>🎯 Tracking Bron</h3>
-        <button class="btn-tracker" style="width: 100%;" id="btn_camera" onclick="update('tracker_bron', 'camera'); highlightTracker('camera')">📷 Camera (AI)</button>
-    </div>
-
-    <div class="card" id="card_radar_target">
-        <h3>👤 Radar Doelwit</h3>
-        <button class="btn-person" id="btn_persoon1" onclick="update('target_person', 'persoon1'); highlightPerson('persoon1')">Persoon 1</button>
-        <button class="btn-person" id="btn_persoon2" onclick="update('target_person', 'persoon2'); highlightPerson('persoon2')">Persoon 2</button>
-        <button class="btn-person" id="btn_persoon3" onclick="update('target_person', 'persoon3'); highlightPerson('persoon3')">Persoon 3</button>
-    </div>
-
-    <div class="card">
         <h3>1. Achtergrond</h3>
-
         <div style="margin-bottom: 20px;">
-            <label style="display:block; text-align:left; color:#aaa; margin-bottom:5px;">Kies een effen kleur:</label>
+            <label style="display:block; text-align:left; color:#aaa; margin-bottom:5px;">Effen kleur:</label>
             <input type="color" id="colorPicker" value="#000000" onchange="sendColor(this.value)">
         </div>
 
@@ -124,42 +96,39 @@ HTML = """
                     <button class="btn-bg" onclick="updateBg('{{ type }}', '{{ file }}')" title="{{ file }}">
                         {% if type == 'video' %}🎬{% else %}🖼️{% endif %} {{ file }}
                     </button>
-                    <button class="btn-rename" onclick="renameFile('{{ file }}')" title="Naam wijzigen">✏️</button>
-                    <button class="btn-delete" onclick="deleteFile('{{ file }}')" title="Bestand verwijderen">🗑️</button>
+                    <button class="btn-rename" onclick="renameFile('{{ file }}')" title="Hernoemen">✏️</button>
+                    <button class="btn-delete" onclick="deleteFile('{{ file }}')" title="Verwijderen">🗑️</button>
                 </div>
             {% endfor %}
-            {% if not media_files %}
-                <p style="color:#777; font-size: 0.9em;">Geen media gevonden. Upload iets hieronder!</p>
-            {% endif %}
         </div>
 
         <div class="upload-form">
             <form action="/upload" method="post" enctype="multipart/form-data">
-                <label style="display:block; text-align:left; color:#aaa; margin-bottom:5px;">Upload nieuwe media:</label>
-                <input type="text" name="custom_name" placeholder="Optionele naam (zonder .mp4/.jpg)">
+                <input type="text" name="custom_name" placeholder="Naam (optioneel)">
                 <input type="file" name="file" accept="image/*,video/*" required>
-                <button type="submit" class="btn-upload">Bestand Uploaden ⬆️</button>
+                <button type="submit" class="btn-upload">Uploaden ⬆️</button>
             </form>
         </div>
     </div>
 
     <div class="card">
-        <h3>2. Effect Kleuren</h3>
+        <h3>2. Effect Modus</h3>
         <button class="btn-mode MAGIC" onclick="update('mode', 'MAGIC')">MAGIC</button>
         <button class="btn-mode FIRE" onclick="update('mode', 'FIRE')">FIRE</button>
         <button class="btn-mode CYBER" onclick="update('mode', 'CYBER')">CYBER</button>
         <button class="btn-mode GHOST" onclick="update('mode', 'GHOST')">GHOST</button>
+        <button class="btn-mode COWBOY" onclick="update('mode', 'COWBOY')">COWBOY</button>
     </div>
 
     <div class="card">
-        <h3>4. Modifiers</h3>
+        <h3>3. Modifiers</h3>
         <div class="slider-container">
-            <span class="slider-label">Y-Offset (Hoogte):</span> <span class="slider-val" id="val_offset">80</span>
-            <input type="range" min="-100" max="300" value="80" oninput="update('offset', this.value)">
+            <span class="slider-label">Y-Offset (Hoogte):</span> <span class="slider-val" id="val_offset">{{ state.offset }}</span>
+            <input type="range" min="-300" max="300" value="{{ state.offset }}" oninput="update('offset', this.value)">
         </div>
         <div class="slider-container">
-            <span class="slider-label">Particle Spawn Rate:</span> <span class="slider-val" id="val_spawn">10</span>
-            <input type="range" min="0" max="50" value="10" oninput="update('spawn', this.value)">
+            <span class="slider-label">Particle Spawn Rate:</span> <span class="slider-val" id="val_spawn">{{ state.spawn }}</span>
+            <input type="range" min="0" max="50" value="{{ state.spawn }}" oninput="update('spawn', this.value)">
         </div>
     </div>
 
@@ -168,51 +137,33 @@ HTML = """
             if(document.getElementById('val_'+key)) {
                 document.getElementById('val_'+key).innerText = val;
             }
-            fetch(`/update?${key}=${val}`, { mode: 'no-cors' });
+            fetch(`/update?${key}=${val}`);
         }
 
         function updateBg(type, val) {
-            fetch(`/update?bg_type=${type}&bg_val=${val}`, { mode: 'no-cors' });
+            fetch(`/update?bg_type=${type}&bg_val=${val}`);
         }
 
         function sendColor(hex) {
-            let r = parseInt(hex.substring(1, 3), 16);
-            let g = parseInt(hex.substring(3, 5), 16);
-            let b = parseInt(hex.substring(5, 7), 16);
+            let r = parseInt(hex.substring(1, 3), 16), g = parseInt(hex.substring(3, 5), 16), b = parseInt(hex.substring(5, 7), 16);
             updateBg('color', `${r},${g},${b}`);
         }
 
-        function highlightTracker(bron) {
-            if (document.getElementById('btn_camera')) {
-                document.getElementById('btn_camera').style.border = (bron === 'camera') ? '2px solid #2ecc71' : '2px solid transparent';
-            }
-        }
-
-        function highlightPerson(person) {
-            document.getElementById('btn_persoon1').style.border = (person === 'persoon1') ? '2px solid #2ecc71' : '2px solid transparent';
-            document.getElementById('btn_persoon2').style.border = (person === 'persoon2') ? '2px solid #2ecc71' : '2px solid transparent';
-            document.getElementById('btn_persoon3').style.border = (person === 'persoon3') ? '2px solid #2ecc71' : '2px solid transparent';
-        }
-
         function renameFile(oldName) {
-            let newName = prompt("Voer een nieuwe naam in (zonder bestandsextensie):", oldName.split('.')[0]);
-            if (newName && newName.trim() !== "") {
+            let newName = prompt("Nieuwe naam:", oldName.split('.')[0]);
+            if (newName) {
                 let formData = new FormData();
                 formData.append('old_name', oldName);
                 formData.append('new_name', newName.trim());
-                
-                fetch('/rename', { method: 'POST', body: formData })
-                .then(response => window.location.reload());
+                fetch('/rename', { method: 'POST', body: formData }).then(() => window.location.reload());
             }
         }
 
         function deleteFile(fileName) {
-            if (confirm("Weet je zeker dat je '" + fileName + "' permanent wilt verwijderen?")) {
+            if (confirm("Permanent verwijderen?")) {
                 let formData = new FormData();
                 formData.append('filename', fileName);
-                
-                fetch('/delete', { method: 'POST', body: formData })
-                .then(response => window.location.reload());
+                fetch('/delete', { method: 'POST', body: formData }).then(() => window.location.reload());
             }
         }
     </script>
@@ -232,82 +183,45 @@ def update():
     for key in state:
         val = request.args.get(key)
         if val is not None:
-            state[key] = int(val) if val.isdigit() else val
-            
+            state[key] = int(val) if val.replace('-', '').isdigit() else val
     try:
         publish.single(MQTT_TOPIC_CONFIG, payload=json.dumps(state), hostname=MQTT_BROKER)
     except Exception as e:
-        print(f"Fout bij sturen MQTT: {e}")
-        
+        print(f"MQTT Error: {e}")
     return "OK"
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'file' not in request.files: 
-        return redirect('/')
-    
+    if 'file' not in request.files: return redirect('/')
     file = request.files['file']
     custom_name = request.form.get('custom_name', '').strip()
-
-    if file.filename == '' or not allowed_file(file.filename):
-        print(f"Upload geweigerd: {file.filename} is geen toegestaan mediatype.")
-        return redirect('/?error=invalid_file')
-
-    original_ext = os.path.splitext(file.filename)[1].lower()
+    if file.filename == '' or not allowed_file(file.filename): return redirect('/')
     
-    if custom_name:
-        filename = secure_filename(custom_name) + original_ext
-    else:
-        filename = secure_filename(file.filename)
-        
-    try:
-        file.save(os.path.join(MEDIA_FOLDER, filename))
-    except Exception as e:
-        print(f"Fout bij opslaan: {e}") 
-        
+    ext = os.path.splitext(file.filename)[1].lower()
+    filename = (secure_filename(custom_name) + ext) if custom_name else secure_filename(file.filename)
+    file.save(os.path.join(MEDIA_FOLDER, filename))
     return redirect('/')
 
 @app.route('/rename', methods=['POST'])
 def rename_file():
-    old_name = request.form.get('old_name')
-    new_name = request.form.get('new_name')
-    
+    old_name, new_name = request.form.get('old_name'), request.form.get('new_name')
     if old_name and new_name:
         old_path = os.path.join(MEDIA_FOLDER, secure_filename(old_name))
-        
-        if os.path.exists(old_path) and allowed_file(old_name):
-            ext = os.path.splitext(old_name)[1].lower()
-            safe_new_name = secure_filename(new_name) + ext
-            new_path = os.path.join(MEDIA_FOLDER, safe_new_name)
-            try:
-                os.rename(old_path, new_path)
-            except Exception as e:
-                print(f"Fout bij hernoemen: {e}")
+        new_path = os.path.join(MEDIA_FOLDER, secure_filename(new_name) + os.path.splitext(old_name)[1])
+        if os.path.exists(old_path): os.rename(old_path, new_path)
     return "OK"
 
 @app.route('/delete', methods=['POST'])
 def delete_file():
     filename = request.form.get('filename')
-    
     if filename:
-        safe_name = secure_filename(filename)
-        filepath = os.path.join(MEDIA_FOLDER, safe_name)
-        
-        if os.path.exists(filepath) and allowed_file(safe_name):
-            try:
-                os.remove(filepath)
-            except Exception as e:
-                print(f"Fout bij verwijderen: {e}")
-                
+        filepath = os.path.join(MEDIA_FOLDER, secure_filename(filename))
+        if os.path.exists(filepath): os.remove(filepath)
     return "OK"
 
 @app.route('/media/<filename>')
 def serve_media(filename):
     return send_from_directory(MEDIA_FOLDER, filename)
-
-@app.route('/get_config')
-def get_config():
-    return jsonify(state)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=80, threaded=True)
