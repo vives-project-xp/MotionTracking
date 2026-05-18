@@ -26,6 +26,211 @@ Software/
     
 ```
 ---
+## VM - Web control panel
+
+De map `Vm` bevat de webinterface waarmee de visuals op afstand worden ingesteld. Deze software draait op de virtuele machine/server en stuurt configuratie door via MQTT naar het toestel dat de projectie uitvoert.
+
+### Inhoud van de map
+
+| Bestand/map | Functie |
+|-------------|---------|
+| `webcontrol.py` | Hoofdversie van het Flask webpaneel. Dit script draait op poort `80`, laadt de styling uit `static/style.css` en publiceert instellingen naar MQTT. |
+| `oldweb.py` | Oude versie van het webpaneel, bewaard als backup. |
+| `static/style.css` | CSS-bestand voor de opmaak van de webinterface. Flask serveert dit bestand automatisch via de `static` map. |
+| `Media/` | Wordt automatisch aangemaakt. Hierin komen geuploade afbeeldingen en videos terecht. |
+
+### Werking
+
+De VM draait een Flask-server. Via de website kan men:
+
+- een achtergrondkleur kiezen;
+- een afbeelding of video uploaden als achtergrond;
+- media hernoemen of verwijderen;
+- een effectmodus kiezen, zoals `MAGIC`, `FIRE`, `CYBER`, `GHOST` of `COWBOY`;
+- parameters aanpassen zoals `offset` en `spawn`;
+- de trackingbron en doelpersoon instellen.
+
+Bij elke wijziging stuurt `webcontrol.py` de volledige configuratie als JSON naar het MQTT-topic:
+
+```text
+vj/config
+```
+
+De MQTT broker staat standaard ingesteld op:
+
+```python
+MQTT_BROKER = "127.0.0.1"
+```
+
+Dit betekent dat de MQTT broker op dezelfde VM moet draaien als het webpaneel.
+
+De HTML van het controlepaneel staat nog in `webcontrol.py`, maar de visuele opmaak staat apart in `static/style.css`. Hierdoor kan de layout aangepast worden zonder de Flask-routes of MQTT-logica te wijzigen.
+
+### Installatie op de VM
+
+Installeer Python en de nodige packages:
+
+```bash
+pip install flask werkzeug paho-mqtt
+```
+
+Zorg ook dat er een MQTT broker draait, bijvoorbeeld Mosquitto:
+
+```bash
+sudo apt install mosquitto mosquitto-clients
+sudo systemctl enable mosquitto
+sudo systemctl start mosquitto
+```
+
+### Starten
+
+Navigeer naar de map:
+
+```bash
+cd Software/Vm
+```
+
+Start daarna het webpaneel:
+
+```bash
+python3 webcontrol.py
+```
+
+De website is bereikbaar via:
+
+```text
+http://<VM-IP>:80
+```
+
+Let op: poort `80` vereist op Linux vaak administratorrechten. Gebruik in dat geval:
+
+```bash
+sudo python3 webcontrol.py
+```
+
+### Belangrijke endpoints
+
+| Endpoint | Functie |
+|----------|---------|
+| `/` | Hoofdpagina van het controlepaneel. |
+| `/update` | Past instellingen aan en publiceert deze via MQTT. |
+| `/upload` | Uploadt afbeeldingen of videos naar de VM. |
+| `/rename` | Hernoemt een mediabestand. |
+| `/delete` | Verwijdert een mediabestand. |
+| `/media/<filename>` | Maakt media beschikbaar voor de visual-output client. |
+| `/get_config` | Geeft de huidige configuratie terug als JSON. |
+
+---
+## Visual_output - Projectie en effecten
+
+De map `Visual_output` bevat de software die op het projectietoestel draait, bijvoorbeeld een Radxa Rock 5B. Deze software opent een fullscreen Pygame-venster op de projector en tekent effecten op basis van trackingdata en instellingen uit de VM.
+
+### Inhoud van de map
+
+| Bestand/map | Functie |
+|-------------|---------|
+| `main.py` | Hoofdprogramma voor de live visual-output. |
+| `effects_lib.py` | Bevat de effect-presets, particle-logica, aura-effecten en background manager. |
+| `requirements.txt` | Python dependencies voor de visual-output software. |
+| `Media/` | Lokale cache voor afbeeldingen en videos die als achtergrond gebruikt worden. |
+| `Markers/` | ArUco/fiducial markers voor projectorkalibratie. |
+| `demo_radar/` | Demo-opstelling voor radarvisualisatie. |
+| `Back_up*.py`, `old-main.py`, `main3.py`, `main_website.py` | Oudere of experimentele versies van de visual-output. |
+| `yolov8n.pt` | YOLO modelbestand voor detectie/testopstellingen. |
+
+### Werking
+
+`main.py` luistert via MQTT naar twee topics:
+
+| Topic | Inhoud |
+|-------|--------|
+| `vj/hailo` | Trackingdata van personen en markers. |
+| `vj/config` | Instellingen vanuit het VM-webpaneel. |
+
+De trackingdata bevat onder andere personen, lichaamsposities en markerposities. De configuratie bepaalt de achtergrond, kleurmodus, particle-spawn en offset.
+
+De belangrijkste stappen in het programma zijn:
+
+1. Verbinden met de MQTT broker op de VM.
+2. Fullscreen Pygame-venster openen op de projector.
+3. Kalibratiemarkers tonen zolang het scherm nog niet gekalibreerd is.
+4. Een perspectieftransformatie berekenen zodra de markers herkend worden.
+5. Trackingpunten omzetten naar projectorcoordinaten.
+6. Achtergrond tekenen.
+7. Effecten, aura's en particles tekenen rond handen en hoofd.
+
+### Configuratie
+
+In `main.py` moet het IP-adres van de VM juist staan:
+
+```python
+VM_IP = "10.20.10.18"
+```
+
+Pas dit aan naar het IP-adres van de VM waarop `webcontrol.py` en de MQTT broker draaien.
+
+### Installatie
+
+Navigeer naar de map:
+
+```bash
+cd Software/Visual_output
+```
+
+Maak eventueel een virtuele omgeving aan:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Installeer daarna de dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+De gebruikte packages zijn onder andere:
+
+- `pygame`
+- `opencv-python`
+- `numpy`
+- `requests`
+- `paho-mqtt`
+
+### Starten
+
+Start de visual-output:
+
+```bash
+python3 main.py
+```
+
+Het programma opent in fullscreen. Gebruik deze toetsen tijdens het draaien:
+
+| Toets | Functie |
+|-------|---------|
+| `ESC` | Programma afsluiten. |
+| `C` | Kalibratie opnieuw uitvoeren. |
+| `S` | Kalibratie overslaan en het volledige scherm gebruiken. |
+
+### Achtergronden en media
+
+Wanneer via de VM een afbeelding of video gekozen wordt, controleert `BackgroundManager` of het bestand lokaal bestaat in `Visual_output/Media`. Als het bestand ontbreekt, wordt het automatisch gedownload vanaf:
+
+```text
+http://<VM-IP>/media/<filename>
+```
+
+Zo hoeft media enkel via het webpaneel op de VM geupload te worden. De visual-output haalt de bestanden zelf op wanneer ze nodig zijn.
+
+### Kalibratie
+
+Bij het opstarten toont `main.py` vier markers op de hoeken van het projectiebeeld. De camera/trackingsoftware moet deze markers detecteren en via `vj/hailo` doorsturen. Zodra alle vier markers gekend zijn, berekent de visual-output een perspectieftransformatie zodat de trackingpunten correct op de projectie verschijnen.
+
+Als de markers niet gebruikt worden of als er snel getest moet worden, kan met `S` een standaardmapping over het volledige scherm gebruikt worden.
+
+---
 ## Ai-Thinker RD-03D Radar Software
 
 ### Hoe de software werkt
