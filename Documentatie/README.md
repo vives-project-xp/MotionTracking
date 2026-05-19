@@ -39,6 +39,10 @@ Deze code leest de data van een **Ai-Thinker RD-03D** mmWave radar sensor via UA
 
 [**Klik Hier**](https://www.electroniclinic.com/rd-03d-mmwave-radar-multi-human-tracking-with-distance-speed-positioning/)
 
+---
+## Gebruikte driver 
+[**Driver**](https://www.silabs.com/documents/public/software/CP210x_Universal_Windows_Driver.zip)
+
 ## Configuratie
 
 ### secrets.h
