@@ -2,15 +2,23 @@
 > Hier vindt men alle documentatie
 
 # Pan and Tilt Joint
-Voor dit project hebben wij een pan and tilt joint gebruikt dat alle richtingen in kan draaien. Hiervoor bestaat all een mooi bestaand project: https://www.thingiverse.com/thing:4316563
-We kunnen hier vinden hoedat wij het samen stellen: https://www.youtube.com/watch?v=uJO7mv4-0PY
-Voor het grote rollement hebben wij dit ook uitgeprint en met gesmeerd zodat het vlot draait.
-Beide Stepper Motors namelijk de NEMA-17 Zijn verbonden met QShield v5d en het shield is verbonden aan de Arduino. Het QShield heeft min 12V nodig We voeden het met een adapter van 12V en 2A, Dit is genoeg voor onze stepper motors. Daarna hebben wij deze lamp gemonteerd op het statief: https://www.bax-shop.be/nl/pinspot/eurolite-led-pst-12w-6000k-spot-smalle-beam-pinspot, Dit moet niet deze lamp zijn, maar is onze prefernce.
+Voor dit project hebben wij een pan and tilt joint gebruikt dat alle richtingen in kan draaien. Hiervoor bestaat al een mooi bestaand project: https://www.thingiverse.com/thing:4316563
+We kunnen hier vinden hoe wij het samenstellen: https://www.youtube.com/watch?v=uJO7mv4-0PY
+Voor het grote rollement hebben wij dit ook uitgeprint en gesmeerd zodat het vlot draait.
+Beide stepper motors, namelijk de NEMA-17, zijn verbonden met een QShield v5d en het shield is verbonden aan de Arduino. Het QShield heeft minimaal 12V nodig. We voeden het met een adapter van 12V en 2A, wat voldoende is voor onze stepper motors. Daarna hebben wij deze lamp gemonteerd op het statief: https://www.bax-shop.be/nl/pinspot/eurolite-led-pst-12w-6000k-spot-smalle-beam-pinspot. Dit moet niet deze lamp zijn, maar is onze voorkeur.
 
 # Code Pan and Tilt Joint
-De code werd geschreven in C in Arduino IDE voor de Arduino Uno dat wij in dit project gebruiken. Je kunt de Code hier vinden: https://github.com/vives-project-xp/MotionTracking/tree/main/Software/Arduino Wat deze code doet is homen van de Y-axis zodat wij niet over de fysieke limiten gaan en het inlezen van de waardes van de mqtt dat vanuit de radar komt.
+De code werd geschreven in C++ in de Arduino IDE voor de Arduino Uno die wij in dit project gebruiken. De broncode is hier te vinden: https://github.com/vives-project-xp/MotionTracking/tree/main/Software/Arduino
 
-
+# Code Uitleg
+De code bestuurt twee stepper motors via een niet-blokkerende scheduler:
+Y-as (tilt): Bij het opstarten wordt de Y-as eerst gehomed. De motor beweegt richting de eindschakelaar (NC-bedrading), raakt deze aan, en rijdt dan een vaste afstand terug zodat de carriage vrij staat. Daarna wordt de positie op nul gezet. Tijdens normaal gebruik wordt de tilt-positie berekend op basis van de ontvangen afstandswaarde (0–500 cm), die lineair wordt omgezet naar een stappenpositie tussen Y_MIN_STEPS (600) en Y_MAX_STEPS (2200).
+Z-as (pan): De motor volgt een doelhoek die rechtstreeks uit het datapakket wordt gehaald. De hoek wordt begrensd tussen −90° en +90°.
+Beide assen werken met een interval-gebaseerde scheduler in loop(): elke as krijgt per iteratie slechts een klein aantal stappen toegewezen (Y_STEPS_PER_TICK, Z_STEPS_PER_TICK), zodat de seriële communicatie nooit geblokkeerd wordt.
+Datapakket formaat: De ESP stuurt kommagescheiden pakketten via software-UART:
+x,y,afstand,hoek
+De code leest veld 2 (afstand) en veld 3 (hoek) uit elk pakket en past de doelposities van beide assen aan.
+Veiligheid: Software-limieten voorkomen dat de motoren buiten hun fysieke bereik rijden. De eindschakelaar wordt ook tijdens normaal gebruik live uitgelezen en herstart de Y-as positie als deze onverwacht geactiveerd wordt.
 # Radar Code Documentatie
 
 ## Overzicht
