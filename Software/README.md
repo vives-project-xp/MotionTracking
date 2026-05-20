@@ -308,6 +308,7 @@ Na een geldige meting wordt de data via WiFi gepubliceerd op het MQTT topic `vj/
 Om de data te ontvangen van de MQTT broker bij de Arduino Uno (die wordt gebruikt om de motoren aan te sturen) gebruiken we een tweede ESP32 omdat deze wel met Wifi kan verbinden.
 We subcriben op de top vj/radar.
 Zo sturen we dan alle data die we binnenkrijgen van de topic over de TX-pin die verbonden is met pin 2 op de Arduino.
+De code voor deze ESP32 kan je vinden in *Radar/tweede_esp*.
 
 ### Documentatie Arduino
 De documentaie over de arduino kan men [hier](/Documentatie/README.md) vinden.
