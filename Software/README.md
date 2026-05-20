@@ -309,6 +309,9 @@ Om de data te ontvangen van de MQTT broker bij de Arduino Uno (die wordt gebruik
 We subcriben op de top vj/radar.
 Zo sturen we dan alle data die we binnenkrijgen van de topic over de TX-pin die verbonden is met pin 2 op de Arduino.
 
+### Documentatie Arduino
+De documentaie over de arduino kan men [hier](/Documentatie/README.md) vinden.
+
 ---
 
 **Richting referentie:**
