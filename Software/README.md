@@ -302,9 +302,12 @@ Na een geldige meting wordt de data via WiFi gepubliceerd op het MQTT topic `vj/
 3. Upload de code naar de ESP32.
 4. Open de **Serial Monitor** (`Ctrl` + `Shift` + `L`) op **115200 baud**.
 5. De ESP32 verbindt automatisch met WiFi en de MQTT broker.
-6. Je ziet nu serial output zoals:
+6. Je ziet nu serial output zoals: *X,Y,Distance,Angle*
 
-**Afstand: 214.7 cm  |  Hoek: 19.7 deg  |  Snelheid: 0 cm/s**
+### Bij de Arduino Uno
+Om de data te ontvangen van de MQTT broker bij de Arduino Uno (die wordt gebruikt om de motoren aan te sturen) gebruiken we een tweede ESP32 omdat deze wel met Wifi kan verbinden.
+We subcriben op de top vj/radar.
+Zo sturen we dan alle data die we binnenkrijgen van de topic over de TX-pin die verbonden is met pin 2 op de Arduino.
 
 ---
 
